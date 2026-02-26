@@ -119,7 +119,8 @@ def save_all(result: dict, config: dict, output_dir: Path, elapsed: float):
     # ── DOCX (optional) ──
     try:
         from docx import Document as DocxDocument
-        from docx.shared import Pt, Cm
+        from docx.shared import Pt, Cm, RGBColor
+        from docx.enum.text import WD_ALIGN_PARAGRAPH
 
         doc = DocxDocument()
         for section in doc.sections:
@@ -132,12 +133,50 @@ def save_all(result: dict, config: dict, output_dir: Path, elapsed: float):
         style.font.name = "Calibri"
         style.font.size = Pt(11)
 
-        doc.add_heading("MBA Strategy Report", level=0)
-        doc.add_paragraph(config["input_query"])
-        doc.add_paragraph(
-            f"Generated: {datetime.now().strftime('%B %d, %Y at %H:%M')}"
-        )
-        doc.add_paragraph(f"Models: {agents_str}")
+        def _cover_para(text, size=11, color=RGBColor(0, 0, 0),
+                        bold=False, italic=False,
+                        space_before=None, space_after=None):
+            p = doc.add_paragraph()
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            if space_before is not None:
+                p.paragraph_format.space_before = space_before
+            if space_after is not None:
+                p.paragraph_format.space_after = space_after
+            run = p.add_run(text)
+            run.font.size = Pt(size)
+            run.font.color.rgb = color
+            run.bold = bold
+            run.italic = italic
+            return p
+
+        # — Cover page —
+        NAVY = RGBColor(31, 78, 121)
+        ACCENT = RGBColor(47, 117, 181)
+        DARK_GRAY = RGBColor(89, 89, 89)
+        LIGHT_GRAY = RGBColor(140, 140, 140)
+
+        # Title pushed down ~40% with space_before
+        _cover_para("MBA STRATEGY REPORT", size=36, color=NAVY,
+                     bold=True, space_before=Cm(6), space_after=Pt(4))
+
+        # Thin divider line
+        _cover_para("━" * 30, size=10, color=ACCENT,
+                     space_before=Pt(0), space_after=Pt(12))
+
+        # Business question
+        _cover_para(f"\u201c{config['input_query']}\u201d",
+                     size=14, color=DARK_GRAY, italic=True,
+                     space_after=Cm(1.5))
+
+        # Date
+        _cover_para(
+            f"Generated: {datetime.now().strftime('%B %d, %Y')}",
+            size=10, color=LIGHT_GRAY, space_after=Pt(2))
+
+        # Models
+        _cover_para(f"Models: {agents_str}",
+                     size=10, color=LIGHT_GRAY, space_after=Pt(0))
+
         doc.add_page_break()
 
         recommendation = result.get("recommendation", "")
