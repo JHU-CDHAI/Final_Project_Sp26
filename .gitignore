@@ -1,0 +1,36 @@
+.venv/
+.DS_Store
+__pycache__/
+*.pyc
+.env
+env.sh
+.langgraph_api/
+mba_output_*.json
+.claude/
+
+# Chainlit session data
+.chainlit/
+chainlit.md
+
+# MBA Colab notebook (lives in Final_Project_Sp26 repo)
+MBA-course/Final_Project_Multi_Agent.ipynb
+
+# MBA config (generated per-session)
+MBA-course/config.yaml
+
+# OpenRouter model tests/lists
+MBA-course/test_openrouter_models.py
+MBA-course/openrouter_available_models.md
+MBA-course/openrouter_available_models.json
+
+# MBA results (session outputs)
+MBA-course/results/
+
+# MBA design files
+MBA-course/Design/
+
+# HTML exports
+Final_Project_Description.html
+
+# Luis agent local data
+luis-agent/
