@@ -24,8 +24,8 @@ def _labeled(label_text, w):
 
 # ── Widgets ──
 query_input = widgets.Textarea(
-    value="How should I start a beverage business in Sweden?",
-    placeholder="Enter your business question here...",
+    value="Please type your business question here...",
+    placeholder="Please type your business question here...",
     layout=widgets.Layout(width="550px", height="80px"),
 )
 
@@ -45,13 +45,11 @@ form = widgets.VBox([
     widgets.HTML(
         '<p style="color:#d32f2f;font-weight:600;font-size:24px;margin:0 0 8px;">'
         '⚠ Do not re-run this cell after changing values.</p>'
-        '<p style="color:#000;font-weight:600;font-size:18px;margin:0 0 8px;">'
-        'Adjust values in the widget.</p>'
     ),
-    widgets.HTML("<h3>Business Question</h3>"),
+    widgets.HTML("<h3>Input Your Business Question</h3>"),
     query_input,
 
-    widgets.HTML("<h3>Agent Models</h3>"),
+    widgets.HTML("<h3>Choose AI Models for Each Agent Role</h3>"),
     _labeled("Intake:", model_intake),
     _labeled("Researcher:", model_researcher),
     _labeled("Critic:", model_critic),
