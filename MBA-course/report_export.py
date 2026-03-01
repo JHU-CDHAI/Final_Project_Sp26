@@ -92,7 +92,7 @@ def save_all(result: dict, config: dict, output_dir: Path, elapsed: float):
     # ── Markdown ──
     md_path = output_dir / f"report_{ts}.md"
     with open(md_path, "w", encoding="utf-8") as f:
-        f.write("# MBA Strategy Report v4\n\n")
+        f.write("# Business Strategy Report\n\n")
         f.write(f"**Generated:** {datetime.now().isoformat()}\n")
         f.write(f"**Agents:** {agents_str}\n\n---\n\n")
         f.write(result.get("recommendation", ""))
