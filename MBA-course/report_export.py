@@ -156,7 +156,7 @@ def save_all(result: dict, config: dict, output_dir: Path, elapsed: float):
         LIGHT_GRAY = RGBColor(140, 140, 140)
 
         # Title pushed down ~40% with space_before
-        _cover_para("MBA STRATEGY REPORT", size=36, color=NAVY,
+        _cover_para("BUSINESS STRATEGY REPORT", size=36, color=NAVY,
                      bold=True, space_before=Cm(6), space_after=Pt(4))
 
         # Thin divider line
