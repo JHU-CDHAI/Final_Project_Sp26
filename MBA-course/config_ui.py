@@ -51,6 +51,11 @@ form = widgets.VBox([
         'Warning: Once your settings are finalized, proceed directly to Step 5. '
         "There is no need to re-run this cell. Re-running it will reset everything "
         'to the default configuration.</p>'
+        '<p style="color:#000;font-weight:400;font-size:14px;margin:8px 0 8px;">'
+        'After you complete all steps in this Colab, feel free to return to this cell '
+        'and experiment with different business questions and settings. Each time you '
+        'run it, a new folder will automatically be created in your Google Drive to '
+        'store the results.</p>'
     ),
     widgets.HTML("<h3>Input Your Business Question</h3>"),
     query_input,
