@@ -43,19 +43,19 @@ max_rev_plan = widgets.BoundedIntText(value=2, min=1, max=5, layout=_slider_layo
 
 form = widgets.VBox([
     widgets.HTML(
-        '<p style="color:#000;font-weight:500;font-size:15px;margin:0 0 8px;">'
+        '<p style="color:#000;font-weight:500;font-size:18px;margin:0 0 8px;">'
         'Enter your business question below, then select a LLM for each agent role '
         'using the dropdown menus. You can also configure the number of rounds, '
         'research topics, web searches, and debate steps.</p>'
-        '<p style="color:#d32f2f;font-weight:600;font-size:15px;margin:0 0 8px;">'
-        'Warning: Once your settings are finalized, proceed directly to Step 5. '
-        "There is no need to re-run this cell. Re-running it will reset everything "
-        'to the default configuration.</p>'
-        '<p style="color:#000;font-weight:400;font-size:14px;margin:8px 0 8px;">'
+        '<p style="color:#000;font-weight:400;font-size:18px;margin:8px 0 8px;">'
         'After you complete all steps in this Colab, feel free to return to this cell '
         'and experiment with different business questions and settings. Each time you '
         'run it, a new folder will automatically be created in your Google Drive to '
         'store the results.</p>'
+        '<p style="color:#d32f2f;font-weight:600;font-size:18px;margin:0 0 8px;">'
+        'Warning: Once your settings are finalized, proceed directly to Step 5. '
+        "There is no need to re-run this cell. Re-running it will reset everything "
+        'to the default configuration.</p>'
     ),
     widgets.HTML("<h3>Input Your Business Question</h3>"),
     query_input,
