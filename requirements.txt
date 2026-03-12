@@ -1,0 +1,10 @@
+langchain-openai
+langchain-core
+langgraph
+python-dotenv
+pydantic
+pyyaml
+tavily-python
+typing_extensions
+httpx
+ipywidgets

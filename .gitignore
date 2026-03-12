@@ -15,8 +15,7 @@ chainlit.md
 # MBA Colab notebook (lives in Final_Project_Sp26 repo)
 MBA-course/Final_Project_Multi_Agent.ipynb
 
-# MBA config (generated per-session)
-MBA-course/config.yaml
+# MBA config — checked in as default; overwritten per-session by config_ui
 
 # OpenRouter model tests/lists
 MBA-course/test_openrouter_models.py
