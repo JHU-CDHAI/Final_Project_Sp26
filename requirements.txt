@@ -6,5 +6,4 @@ pydantic
 pyyaml
 tavily-python
 typing_extensions
-httpx
-ipywidgets
+python-docx
