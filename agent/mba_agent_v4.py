@@ -15,7 +15,7 @@ Pipeline:
   → synthesizer → action_plan_90d → [Gate 3] → END
 
 Input:  input_query from config.yaml or HumanMessage
-Output: MBA-course/results/ (JSON + markdown report)
+Output: agent/results/ (JSON + markdown report)
 """
 
 # %% [markdown]

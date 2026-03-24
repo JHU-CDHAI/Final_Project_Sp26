@@ -13,18 +13,18 @@ mba_output_*.json
 chainlit.md
 
 # MBA Colab notebook (lives in Final_Project_Sp26 repo)
-MBA-course/Final_Project_Multi_Agent.ipynb
+agent/Final_Project_Multi_Agent.ipynb
 
 # MBA config — checked in as default; overwritten per-session by config_ui
 
 # OpenRouter model tests/lists
-MBA-course/openrouter_tests/
+agent/openrouter_tests/
 
 # MBA results (session outputs)
-MBA-course/results/
+agent/results/
 
 # MBA design files
-MBA-course/Design/
+agent/Design/
 
 # HTML exports
 Final_Project_Description.html

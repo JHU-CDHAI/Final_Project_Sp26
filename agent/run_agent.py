@@ -28,12 +28,12 @@ def load(config_ui, repo_dir: str):
     """
     config_dict = config_ui.get_config()
 
-    config_path = Path(repo_dir) / "MBA-course" / "config.yaml"
+    config_path = Path(repo_dir) / "agent" / "config.yaml"
     with open(config_path, "w") as f:
         yaml.dump(config_dict, f, default_flow_style=False, sort_keys=False)
     print(f"Config written to {config_path}")
 
-    agent_dir = str(Path(repo_dir) / "MBA-course")
+    agent_dir = str(Path(repo_dir) / "agent")
     if agent_dir not in sys.path:
         sys.path.insert(0, agent_dir)
         print(f"Agent module path added: {agent_dir}")

@@ -13,10 +13,10 @@ pip install -r requirements.txt
 ### 2. Add your API keys
 
 ```bash
-cp MBA-course/.env.example MBA-course/.env
+cp agent/.env.example agent/.env
 ```
 
-Edit `MBA-course/.env` and fill in your keys:
+Edit `agent/.env` and fill in your keys:
 
 ```
 OPENROUTER_API_KEY=sk-or-v1-your-key-here
@@ -28,7 +28,7 @@ TAVILY_API_KEY=tvly-your-key-here
 
 ### 3. (Optional) Edit the configuration
 
-Open `MBA-course/config.yaml` to change the business question, swap models, or tune agent behavior:
+Open `agent/config.yaml` to change the business question, swap models, or tune agent behavior:
 
 ```yaml
 input_query: "How should I start a beverage business in Sweden?"
@@ -51,7 +51,7 @@ Available models:
 ### 4. Run the agent
 
 ```bash
-cd MBA-course
+cd agent
 ../.venv/bin/python mba_agent_v4.py
 ```
 
@@ -61,7 +61,7 @@ The agent will walk through its pipeline and pause at three human gates. At each
 
 ### 5. View results
 
-Reports are saved to `MBA-course/results/<timestamp>/`:
+Reports are saved to `agent/results/<timestamp>/`:
 
 | File | Contents |
 |------|----------|
@@ -72,7 +72,7 @@ Reports are saved to `MBA-course/results/<timestamp>/`:
 
 ## Google Colab
 
-This project can also run as an interactive notebook on Google Colab. See `MBA-course/Final_Project_Multi_Agent.ipynb` for the guided walkthrough with a widget-based config UI and Google Drive export.
+This project can also run as an interactive notebook on Google Colab. See `agent/Final_Project_Multi_Agent.ipynb` for the guided walkthrough with a widget-based config UI and Google Drive export.
 
 ## License
 
