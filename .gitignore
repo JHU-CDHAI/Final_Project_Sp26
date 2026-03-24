@@ -18,9 +18,7 @@ MBA-course/Final_Project_Multi_Agent.ipynb
 # MBA config — checked in as default; overwritten per-session by config_ui
 
 # OpenRouter model tests/lists
-MBA-course/test_openrouter_models.py
-MBA-course/openrouter_available_models.md
-MBA-course/openrouter_available_models.json
+MBA-course/openrouter_tests/
 
 # MBA results (session outputs)
 MBA-course/results/

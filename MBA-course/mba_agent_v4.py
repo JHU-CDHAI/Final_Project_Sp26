@@ -76,7 +76,7 @@ OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 AGENTS = CFG["agents"]
 
 # Agent behavior
-AUTO_APPROVE = False
+AUTO_APPROVE = CFG.get("auto_approve", False)
 MAX_CLARIFY_ROUNDS = CFG["max_clarify_rounds"]
 MAX_RESEARCH_TOPICS = CFG["max_research_topics"]
 MAX_WEB_SEARCH_CT = CFG["max_web_search_ct"]
