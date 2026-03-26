@@ -1306,13 +1306,20 @@ print(f"  Edges: {len(graph.get_graph().edges)}")
 
 # %% Run Agent
 if __name__ == "__main__":
+    import argparse
     from langgraph.checkpoint.memory import MemorySaver
     from langgraph.types import Command
     import report_export
 
+    parser = argparse.ArgumentParser(description="MBA Strategy Agent v4")
+    parser.add_argument("--name", type=str, default=None,
+                        help="Suffix appended to the output folder: <timestamp>_<name>")
+    args = parser.parse_args()
+
     # ── Timestamped output directory ──
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_dir = Path(__file__).resolve().parent / "results" / ts
+    folder = f"{ts}_{args.name}" if args.name else ts
+    output_dir = Path(__file__).resolve().parent / "results" / folder
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # ── Tee stdout to log.txt ──
