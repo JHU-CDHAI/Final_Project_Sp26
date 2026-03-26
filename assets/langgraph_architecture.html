@@ -80,9 +80,9 @@
   .c-amber .ico { background:rgba(251,191,36,.22); }
   .c-amber .name { color:#b45309; }
 
-  .c-pink { background:rgba(37,99,235,.12); border:1px solid rgba(37,99,235,.35); }
-  .c-pink .ico { background:rgba(37,99,235,.22); }
-  .c-pink .name { color:#2563eb; }
+  .c-pink { background:rgba(30,64,175,.12); border:1px solid rgba(30,64,175,.35); }
+  .c-pink .ico { background:rgba(30,64,175,.22); }
+  .c-pink .name { color:#1e40af; }
 
   .terminal {
     width:40px; height:40px;
@@ -136,11 +136,13 @@
     letter-spacing:1.5px;
     padding:4px 14px;
     border-radius:20px;
+    margin-top:24px;
     margin-bottom:4px;
   }
-  .pt-intake  { color:#818cf8; background:rgba(99,102,241,.1); border:1px solid rgba(99,102,241,.25); }
-  .pt-research{ color:#34d399; background:rgba(16,185,129,.1); border:1px solid rgba(16,185,129,.25); }
-  .pt-output  { color:#2563eb; background:rgba(37,99,235,.1); border:1px solid rgba(37,99,235,.25); }
+  .pt-intake  { color:#6b7280; background:rgba(107,114,128,.1); border:1px solid rgba(107,114,128,.25); }
+  .pt-planning{ color:#6b7280; background:rgba(107,114,128,.1); border:1px solid rgba(107,114,128,.25); }
+  .pt-research{ color:#6b7280; background:rgba(107,114,128,.1); border:1px solid rgba(107,114,128,.25); }
+  .pt-output  { color:#6b7280; background:rgba(107,114,128,.1); border:1px solid rgba(107,114,128,.25); }
 
   /* Loop badge (right side) */
   .loop-badge {
@@ -323,22 +325,39 @@
   <div class="gate-row">
     <div class="gate"><span>👤</span></div>
     <div class="gate-info">
-      <div class="gate-label">Human Input 1</div>
-      <div class="gate-desc">Approve problem description &amp; scope</div>
+      <div class="gate-label">Human Gate 1</div>
+      <div class="gate-desc">Problem Framing</div>
     </div>
   </div>
   <div class="connector"></div>
 
-  <!-- ═══ Phase 2: Research & Debate (Per Topic) ═══ -->
-  <div class="phase-tag pt-research">Phase 2 · Research &amp; Debate</div>
+  <!-- ═══ Phase 2: Topic Planning ═══ -->
+  <div class="phase-tag pt-planning">Phase 2 · Topic Planning</div>
   <div class="sp"></div>
 
-  <div class="node c-green">
+  <div class="node c-indigo" style="position:relative;">
     <div class="ico">🗂️</div>
     <div class="txt"><div class="name">Plan Research Topics</div><div class="desc">Split the problem into a list of research topics</div></div>
+    <div class="loop-badge loop-indigo">
+      <div class="arrow-loop"></div>
+      <div class="loop-text">iterates</div>
+    </div>
   </div>
   <div class="connector"></div>
-  <div style="height:20px;"></div>
+
+  <div class="gate-row">
+    <div class="gate"><span>👤</span></div>
+    <div class="gate-info">
+      <div class="gate-label">Human Gate 2</div>
+      <div class="gate-desc">Research Topics</div>
+    </div>
+  </div>
+  <div class="connector"></div>
+
+  <!-- ═══ Phase 3: Research & Debate ═══ -->
+  <div class="phase-tag pt-research">Phase 3 · Research &amp; Debate</div>
+  <div class="sp"></div>
+  <div style="height:12px;"></div>
 
   <!-- Per-topic loop container -->
   <div class="topic-loop-box">
@@ -371,8 +390,8 @@
     <div class="gate-row">
       <div class="gate"><span>👤</span></div>
       <div class="gate-info">
-        <div class="gate-label">Human Input 2</div>
-        <div class="gate-desc">Approve each topic or give input for revision</div>
+        <div class="gate-label">Human Gate 3</div>
+        <div class="gate-desc">Topic Review</div>
       </div>
     </div>
 
@@ -381,8 +400,8 @@
 
   <div class="connector"></div>
 
-  <!-- ═══ Phase 3: Output ═══ -->
-  <div class="phase-tag pt-output">Phase 3 · Synthesis &amp; Action</div>
+  <!-- ═══ Phase 4: Output ═══ -->
+  <div class="phase-tag pt-output">Phase 4 · Synthesis &amp; Action</div>
   <div class="sp"></div>
 
   <div class="node c-pink">
@@ -400,8 +419,8 @@
   <div class="gate-row">
     <div class="gate"><span>👤</span></div>
     <div class="gate-info">
-      <div class="gate-label">Human Input 3</div>
-      <div class="gate-desc">Review &amp; approve the final report</div>
+      <div class="gate-label">Human Gate 4</div>
+      <div class="gate-desc">Final Approval</div>
     </div>
   </div>
   <div class="connector"></div>
@@ -416,10 +435,10 @@
   <div class="legend-item"><div class="legend-dot" style="background:#818cf8;"></div>Intake</div>
   <div class="legend-item"><div class="legend-dot" style="background:#34d399;"></div>Research</div>
   <div class="legend-item"><div class="legend-dot" style="background:#fcd34d;"></div>Critique</div>
-  <div class="legend-item"><div class="legend-dot" style="background:#2563eb;"></div>Output</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#1e40af;"></div>Output</div>
   <div class="legend-item">
     <div style="width:14px;height:14px;background:rgba(251,191,36,.15);border:1.5px solid #fbbf24;border-radius:4px;transform:rotate(45deg);"></div>
-    Human Input
+    Human Gate
   </div>
   <div class="legend-item">
     <div style="width:20px;border-top:2px dashed #34d399;"></div>

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Title: MBA Strategy Agent v4 — Per-Topic Debate Loop + 3 Human Gates
+Title: MBA Strategy Agent v4 — Per-Topic Debate Loop + 4 Human Gates
 
 A multi-agent business strategy assistant using LangGraph with ChatOpenAI
 routed through OpenRouter. v4 introduces per-topic debate (Research & Propose
@@ -9,10 +9,10 @@ routed through OpenRouter. v4 introduces per-topic debate (Research & Propose
 All config and scenario inputs are loaded from config.yaml.
 
 Pipeline:
-  START → intake → clarify → [Gate 1] → plan_topics →
-  ┌→ research_and_propose ⇄ topic_critic → [Gate 2] → (next topic)─┐
+  START → intake → clarify → [Gate 1] → plan_topics → [Gate 2] →
+  ┌→ research_and_propose ⇄ topic_critic → [Gate 3] → (next topic)─┐
   └──────────────────────────────────────────────────────────────────┘
-  → synthesizer → action_plan_90d → [Gate 3] → END
+  → synthesizer → action_plan_90d → [Gate 4] → END
 
 Input:  input_query from config.yaml or HumanMessage
 Output: agent/results/ (JSON + markdown report)
@@ -200,7 +200,7 @@ class MBAAgentState(MessagesState):
     time_horizon: str
     risk_tolerance: str
     constraints: str
-    # Intake agent conversation memory (cleared after plan_research_topics)
+    # Intake agent conversation memory (cleared after topics gate approval)
     intake_chat_history: list[dict]
     # Clarification
     problem_framing: str
@@ -227,8 +227,10 @@ class MBAAgentState(MessagesState):
     human_feedback_1: str
     human_feedback_2: str
     human_feedback_3: str
+    human_feedback_4: str
     # Control
     clarify_round: int
+    topics_revision_round: int
     proposal_revision_round: int
     plan_revision_round: int
     status: str
@@ -293,6 +295,28 @@ def _build_debate_context(debate_history: list[dict], max_chars: int = MAX_CONTE
     context += "".join(entries)
     context += "\n--- END DEBATE HISTORY ---"
     return context
+
+# ── Detailed per-phase logging ──
+_output_dir: Path | None = None
+
+def set_output_dir(path: Path):
+    """Set the output directory and create the logs subfolder."""
+    global _output_dir
+    _output_dir = path
+    (path / "logs").mkdir(parents=True, exist_ok=True)
+
+def _append_log(filename: str, content: str):
+    """Append content to a log file inside <output_dir>/logs/."""
+    if _output_dir is None:
+        return
+    with open(_output_dir / "logs" / filename, "a", encoding="utf-8") as f:
+        f.write(content)
+
+def _topic_log_filename(idx: int, topic: str) -> str:
+    """Generate a log filename for a topic: topic_1_consumer_behavior.txt"""
+    import re
+    slug = re.sub(r'[^a-z0-9]+', '_', topic.lower())[:50].strip('_')
+    return f"topic_{idx+1}_{slug}.txt"
 
 # ============================================================================
 # NODE FUNCTIONS
@@ -383,6 +407,12 @@ def intake(state: dict) -> dict:
         {"role": "human", "content": user_text},
     ]
 
+    # ── Log ──
+    log = "=== INTAKE ===\n\n"
+    for k, v in parsed.items():
+        log += f"{k}: {v}\n"
+    _append_log("problem_intake.txt", log + "\n")
+
     return {**parsed, "intake_chat_history": chat_history}
 
 
@@ -432,6 +462,15 @@ def clarify_problem(state: dict) -> dict:
 
     print(f"  -> {len(questions)} questions generated")
 
+    # ── Log ──
+    log = "=== CLARIFY PROBLEM ===\n\n"
+    log += f"Problem Framing:\n{framing}\n\n"
+    log += f"Constraints:\n{constraints_noted}\n\n"
+    log += "Questions:\n"
+    for i, q in enumerate(questions, 1):
+        log += f"  {i}. {q}\n"
+    _append_log("problem_intake.txt", log + "\n")
+
     # Build display summary
     chat_summary = f"**Problem Framing:**\n{framing}"
     if constraints_noted:
@@ -462,7 +501,7 @@ def human_gate_1(state: dict) -> dict:
     """Pause for human review of problem framing."""
     print("\n")
     print("=" * 80)
-    print("NODE: Human Gate 1 — Review Problem Framing")
+    print("NODE: Human Gate 1 — Problem Framing")
     print("=" * 80)
 
     # Build the review content for the interrupt
@@ -486,6 +525,7 @@ def human_gate_1(state: dict) -> dict:
 
     if AUTO_APPROVE:
         print("  -> Auto-approved")
+        _append_log("problem_intake.txt", "=== HUMAN GATE 1 ===\nFeedback: auto-approved\n\n")
         return {"human_feedback_1": "approved"}
 
     feedback = interrupt(review_content)
@@ -493,14 +533,17 @@ def human_gate_1(state: dict) -> dict:
 
     if not feedback or feedback.lower() in ("approve", "approved", "ok", "yes", "skip", "looks good", "lgtm"):
         print("  -> Approved")
+        _append_log("problem_intake.txt", "=== HUMAN GATE 1 ===\nFeedback: approved\n\n")
         return {"human_feedback_1": "approved"}
 
     clarify_round = state.get("clarify_round", 0) + 1
     if clarify_round >= MAX_CLARIFY_ROUNDS:
         print(f"  ** Max clarify rounds ({MAX_CLARIFY_ROUNDS}) reached. Forcing approve. **")
+        _append_log("problem_intake.txt", f"=== HUMAN GATE 1 ===\nFeedback: {feedback}\n(Max rounds reached — forced approve)\n\n")
         return {"human_feedback_1": "approved", "clarify_round": clarify_round}
 
     print(f"  -> Feedback: {feedback[:100]} (round {clarify_round}/{MAX_CLARIFY_ROUNDS})")
+    _append_log("problem_intake.txt", f"=== HUMAN GATE 1 (Round {clarify_round}) ===\nFeedback: {feedback}\n\n")
     return {"human_feedback_1": feedback, "clarify_round": clarify_round}
 
 
@@ -524,6 +567,12 @@ def plan_research_topics(state: dict) -> dict:
 
     # Continue the intake conversation
     history = list(state.get("intake_chat_history", []))
+
+    # If human gave feedback on topics, add it to the conversation
+    hf = state.get("human_feedback_2", "")
+    if hf and hf != "approved":
+        history.append({"role": "human", "content": f"Revise the research topics based on this feedback: {hf}"})
+
     history.append({"role": "human", "content": PLAN_TOPICS_INSTRUCTION.format(n=MAX_RESEARCH_TOPICS)})
 
     chat_msgs = _rebuild_chat_history(history)
@@ -553,9 +602,21 @@ def plan_research_topics(state: dict) -> dict:
 
     print(f"  Research brief: {len(research_brief)} chars")
 
+    # Append AI response to history so revision rounds see prior topics
+    history.append({"role": "ai", "content": f"Research topics:\n{topics_text}"})
+
+    # ── Log ──
+    log = "=== PLAN RESEARCH TOPICS ===\n\n"
+    log += "Topics:\n"
+    for i, t in enumerate(topics, 1):
+        log += f"  {i}. {t}\n"
+    log += f"\nResearch Brief:\n{research_brief}\n"
+    _append_log("topic_planning.txt", log + "\n")
+
     return {
         "research_topics": topics,
         "research_brief": research_brief,
+        "intake_chat_history": history,
         # Reset per-topic debate state
         "current_topic_idx": 0,
         "current_debate_round": 0,
@@ -564,10 +625,58 @@ def plan_research_topics(state: dict) -> dict:
         "current_topic_limitations": [],
         "debate_converged": False,
         "debate_history": [],
-        # Clear intake conversation memory (no longer needed)
-        "intake_chat_history": [],
-        "messages": [AIMessage(content=f"**Research Plan** ({len(topics)} topics):\n{topics_text}\n\nStarting per-topic debate loop...")],
+        "messages": [AIMessage(content=f"**Research Plan** ({len(topics)} topics):\n{topics_text}")],
     }
+
+
+# %% Node: Human Gate 2 — Research Topics
+MAX_TOPICS_REVISION = CFG.get("max_topics_revision", 2)
+
+def human_gate_2(state: dict) -> dict:
+    """Human review of planned research topics before starting research."""
+    print("\n")
+    print("=" * 80)
+    print("NODE: Human Gate 2 — Research Topics")
+    print("=" * 80)
+
+    topics = state.get("research_topics", [])
+    research_brief = state.get("research_brief", "")
+    topics_text = "\n".join(f"  {i}. {t}" for i, t in enumerate(topics, 1))
+
+    if AUTO_APPROVE:
+        print("  -> Auto-approved")
+        _append_log("topic_planning.txt", "=== HUMAN GATE 2 ===\nFeedback: auto-approved\n\n")
+        return {"human_feedback_2": "approved", "intake_chat_history": []}
+
+    feedback = interrupt(
+        f"--- RESEARCH TOPICS ({len(topics)}) ---\n{topics_text}\n\n"
+        "---\n"
+        "- Press Enter or 'approve' → start researching these topics\n"
+        "- Or provide feedback to change the topics (e.g. add, remove, rephrase)"
+    )
+    feedback = str(feedback).strip()
+
+    if not feedback or feedback.lower() in ("approve", "approved", "ok", "yes", "skip", "looks good", "lgtm"):
+        print("  -> Approved")
+        _append_log("topic_planning.txt", "=== HUMAN GATE 2 ===\nFeedback: approved\n\n")
+        return {"human_feedback_2": "approved", "intake_chat_history": []}
+
+    revision_round = state.get("topics_revision_round", 0) + 1
+    if revision_round >= MAX_TOPICS_REVISION:
+        print(f"  ** Max topics revisions ({MAX_TOPICS_REVISION}) reached. Forcing approve. **")
+        _append_log("topic_planning.txt", f"=== HUMAN GATE 2 ===\nFeedback: {feedback}\n(Max rounds reached — forced approve)\n\n")
+        return {"human_feedback_2": "approved", "topics_revision_round": revision_round, "intake_chat_history": []}
+
+    print(f"  -> Feedback: {feedback[:100]} (revision {revision_round}/{MAX_TOPICS_REVISION})")
+    _append_log("topic_planning.txt", f"=== HUMAN GATE 2 (Round {revision_round}) ===\nFeedback: {feedback}\n\n")
+    return {"human_feedback_2": feedback, "topics_revision_round": revision_round}
+
+
+# %% Routing: After Gate 2
+def route_after_gate_2(state: dict) -> Literal["plan_research_topics", "research_and_propose"]:
+    if state.get("human_feedback_2") == "approved":
+        return "research_and_propose"
+    return "plan_research_topics"
 
 
 # %% Node: Research & Propose (NEW — replaces run_topic_research + proposer)
@@ -581,6 +690,12 @@ RESEARCH_PROPOSE_PROMPT = textwrap.dedent("""\
     You have access to the full debate history — all prior proposals, critic
     feedback, and human feedback for this topic. Build on and improve your
     prior work rather than starting from scratch.
+
+    HIGHEST PRIORITY: If there is [HUMAN] feedback in the debate history,
+    treat it as the most important input — above all critic feedback. The
+    human is the client and decision-maker. Address every point they raised
+    FIRST, then handle any remaining critic gaps. Structure your gap_responses
+    so human feedback items appear at the top.
 
     IMPORTANT: If a critic has reviewed your prior proposal, you MUST directly
     address every gap and concern they raised:
@@ -725,6 +840,24 @@ def research_and_propose(state: dict) -> dict:
         {"role": "researcher", "content": proposal_text}
     ]
 
+    # ── Log ──
+    log_file = _topic_log_filename(idx, topic)
+    log = f"=== RESEARCH & PROPOSE (Round {debate_round + 1}) ===\n\n"
+    log += f"Topic: {proposal_dict.get('topic', topic)}\n\n"
+    log += f"Summary:\n{proposal_dict.get('summary', 'N/A')}\n\n"
+    log += f"Proposal:\n{proposal_dict.get('proposal', 'N/A')}\n\n"
+    log += f"Key Recommendation:\n{proposal_dict.get('key_recommendation', 'N/A')}\n\n"
+    for fi in proposal_dict.get("findings", []):
+        if isinstance(fi, dict):
+            log += f"  [{fi.get('confidence', '?')}] {fi.get('claim', '')}\n"
+            for s in fi.get("sources", []):
+                log += f"       Source: {s.get('title', '')} — {s.get('url', '')}\n"
+        else:
+            log += f"  - {fi}\n"
+    for r in proposal_dict.get("gap_responses", []):
+        log += f"  Gap Response: {r}\n"
+    _append_log(log_file, log + "\n")
+
     return {
         "current_topic_proposal": json.dumps(proposal_dict, default=str),
         "debate_converged": False,
@@ -852,6 +985,25 @@ Debate round: {debate_round + 1} of max {MAX_DEBATE_ROUNDS}
         {"role": "critic", "content": critique_text}
     ]
 
+    # ── Log ──
+    log_file = _topic_log_filename(idx, topic)
+    log = f"=== CRITIC (Round {debate_round + 1}) ===\n\n"
+    log += f"Assessment:\n{assessment}\n\n"
+    log += f"Converged: {converged}\n\n"
+    if gaps:
+        log += "Gaps:\n"
+        for g in gaps:
+            log += f"  - {g}\n"
+        log += "\n"
+    if revision_guidance:
+        log += f"Revision Guidance:\n{revision_guidance}\n\n"
+    if limitations:
+        log += "Limitations:\n"
+        for l in limitations:
+            log += f"  - {l}\n"
+        log += "\n"
+    _append_log(log_file, log)
+
     # Store critique — include limitations when converged
     if converged:
         stored_critique = f"{assessment}\n\nLimitations: {', '.join(limitations) if limitations else 'None'}"
@@ -869,13 +1021,13 @@ Debate round: {debate_round + 1} of max {MAX_DEBATE_ROUNDS}
 
 
 # %% Routing: After Critic
-def route_after_critic(state: dict) -> Literal["human_gate_2", "research_and_propose"]:
+def route_after_critic(state: dict) -> Literal["human_gate_3", "research_and_propose"]:
     """If converged or max debate rounds reached → human gate. Else → revise."""
     if state.get("debate_converged", False):
-        return "human_gate_2"
+        return "human_gate_3"
     if state.get("current_debate_round", 0) >= MAX_DEBATE_ROUNDS:
         print(f"  [Max debate rounds ({MAX_DEBATE_ROUNDS}) reached — moving to human gate]")
-        return "human_gate_2"
+        return "human_gate_3"
     return "research_and_propose"
 
 
@@ -908,8 +1060,8 @@ _GATE2_RESET = {
 }
 
 
-# %% Node: Human Gate 2 (per-topic)
-def human_gate_2(state: dict) -> dict:
+# %% Node: Human Gate 3 — Topic Review (per-topic)
+def human_gate_3(state: dict) -> dict:
     """Per-topic human review. Approve → append to approved_topics + advance.
     Revise → loop back to research_and_propose for same topic."""
     idx = state["current_topic_idx"]
@@ -918,7 +1070,7 @@ def human_gate_2(state: dict) -> dict:
 
     print("\n")
     print("=" * 80)
-    print(f"NODE: Human Gate 2 — Review Topic {idx+1}/{len(topics)}: {topic}")
+    print(f"NODE: Human Gate 3 — Topic {idx+1}/{len(topics)}: {topic}")
     print("=" * 80)
 
     # Parse proposal for display
@@ -967,10 +1119,13 @@ def human_gate_2(state: dict) -> dict:
         "approve", "approved", "ok", "yes", "skip", "looks good", "lgtm"
     )
 
+    log_file = _topic_log_filename(idx, topic)
+
     if is_approved:
         print(f"  -> Approved topic {idx+1}")
+        _append_log(log_file, f"=== HUMAN GATE 3 ===\nFeedback: approved\n\n")
         return {
-            "human_feedback_2": "approved",
+            "human_feedback_3": "approved",
             "approved_topics": [_build_approved_entry(state, topic)],
             "current_topic_idx": idx + 1,
             **_GATE2_RESET,
@@ -979,8 +1134,9 @@ def human_gate_2(state: dict) -> dict:
         revision_round = state.get("proposal_revision_round", 0) + 1
         if revision_round >= MAX_HUMAN_REVISION_ON_PROPOSAL:
             print(f"  ** Max human revisions ({MAX_HUMAN_REVISION_ON_PROPOSAL}) reached. Forcing approve. **")
+            _append_log(log_file, f"=== HUMAN GATE 3 ===\nFeedback: {feedback}\n(Max rounds reached — forced approve)\n\n")
             return {
-                "human_feedback_2": "approved",
+                "human_feedback_3": "approved",
                 "approved_topics": [_build_approved_entry(state, topic)],
                 "current_topic_idx": idx + 1,
                 **_GATE2_RESET,
@@ -1000,8 +1156,10 @@ def human_gate_2(state: dict) -> dict:
         debate_history = list(state.get("debate_history", []))
         debate_history.append({"role": "human", "content": human_critique})
 
+        _append_log(log_file, f"=== HUMAN GATE 3 (Revision {revision_round}) ===\nFeedback: {feedback}\n\n")
+
         return {
-            "human_feedback_2": feedback,
+            "human_feedback_3": feedback,
             "current_topic_critique": human_critique,
             "proposal_revision_round": revision_round,
             "current_debate_round": 0,  # Reset so human feedback gets a full debate cycle
@@ -1010,14 +1168,14 @@ def human_gate_2(state: dict) -> dict:
         }
 
 
-# %% Routing: After Gate 2
-def route_after_gate_2(state: dict) -> Literal["research_and_propose", "synthesizer"]:
+# %% Routing: After Gate 3
+def route_after_gate_3(state: dict) -> Literal["research_and_propose", "synthesizer"]:
     """After gate 2:
     - If revise requested → research_and_propose (same topic, idx not advanced)
     - If approved + more topics → research_and_propose (next topic, idx advanced)
     - If approved + all done → synthesizer
     """
-    if state.get("human_feedback_2", "") not in ("approved", ""):
+    if state.get("human_feedback_3", "") not in ("approved", ""):
         # Revise — same topic
         return "research_and_propose"
 
@@ -1080,6 +1238,34 @@ Approved topic proposals:
 Write a comprehensive recommendation report with all 8 sections.
 IMPORTANT: Include a References section at the end with all source URLs from the findings. Cite them using [N] notation throughout the report.""", label="synthesizer input")
 
+    # ── Log synthesizer input ──
+    log = "=== SYNTHESIZER INPUT ===\n\n"
+    log += f"Research Brief:\n{research_brief}\n\n"
+    log += f"Approved Topics ({len(approved)}):\n"
+    log += "=" * 40 + "\n"
+    for entry in approved:
+        log += f"\nTopic: {entry.get('topic', 'N/A')}\n"
+        log += f"Debate Rounds: {entry.get('debate_rounds', '?')}\n"
+        log += f"Converged: {entry.get('debate_converged', '?')}\n\n"
+        log += f"Summary:\n{entry.get('summary', 'N/A')}\n\n"
+        log += f"Proposal:\n{entry.get('proposal', 'N/A')}\n\n"
+        log += f"Key Recommendation:\n{entry.get('key_recommendation', 'N/A')}\n\n"
+        for fi in entry.get("findings", []):
+            if isinstance(fi, dict):
+                log += f"  [{fi.get('confidence', '?')}] {fi.get('claim', '')}\n"
+                for s in fi.get("sources", []):
+                    log += f"       Source: {s.get('title', '')} — {s.get('url', '')}\n"
+            else:
+                log += f"  - {fi}\n"
+        log += f"\nCritic Assessment:\n{entry.get('critic_assessment', 'N/A')}\n"
+        limitations = entry.get("limitations", [])
+        if limitations:
+            log += "Limitations:\n"
+            for l in limitations:
+                log += f"  - {l}\n"
+        log += "\n" + "-" * 40 + "\n"
+    _append_log("synthesizer.txt", log)
+
     resp = llm_synthesizer.invoke([SystemMessage(content=SYNTH_PROMPT),
                                     HumanMessage(content=user_msg)])
     recommendation = resp.content
@@ -1091,6 +1277,11 @@ IMPORTANT: Include a References section at the end with all source URLs from the
         recommendation = resp.content
 
     print(f"  -> Report generated ({len(recommendation)} chars)")
+
+    # ── Log synthesizer output ──
+    _append_log("synthesizer.txt",
+        f"\n=== SYNTHESIZER OUTPUT ===\n\n"
+        f"{recommendation}\n")
 
     return {
         "recommendation": recommendation,
@@ -1144,7 +1335,7 @@ Research topics covered: {', '.join(topic_names)}
 
 Create a 90-day action plan based on the recommendation report above."""})
     else:
-        # Gate 3 sent us back — human feedback already appended by human_gate_3
+        # Gate 4 sent us back — human feedback already appended by human_gate_4
         action_plan_history.append({"role": "human", "content":
             "Revise the action plan based on the feedback above."})
 
@@ -1178,6 +1369,24 @@ Web search: Tavily
 
     print(f"  -> Action plan generated ({len(plan)} chars)")
 
+    # ── Log ──
+    plan_round = state.get("plan_revision_round", 0)
+    log_file = f"action_plan_{plan_round + 1}.txt"
+    log = f"=== ACTION PLAN (Round {plan_round + 1}) ===\n\n"
+    if plan_round == 0:
+        log += f"Input:\n"
+        log += f"  Market: {state.get('country_or_market', 'N/A')}\n"
+        log += f"  Product: {state.get('product_idea', 'N/A')}\n"
+        log += f"  Budget: {state.get('budget_range', 'N/A')}\n"
+        log += f"  Timeline: {state.get('time_horizon', 'N/A')}\n"
+        log += f"  Topics: {', '.join(topic_names)}\n\n"
+    else:
+        # On revision rounds, log the human feedback that triggered this
+        hf = state.get("human_feedback_4", "")
+        log += f"Human Feedback:\n{hf}\n\n"
+    log += f"Output:\n{plan}\n"
+    _append_log(log_file, log)
+
     return {
         "action_plan": plan,
         "action_plan_history": action_plan_history,
@@ -1187,20 +1396,24 @@ Web search: Tavily
     }
 
 
-# %% Node: Human Gate 3 (NEW — final approval)
-def human_gate_3(state: dict) -> dict:
+# %% Node: Human Gate 4 — Final Approval
+def human_gate_4(state: dict) -> dict:
     """Final human approval of the synthesized report + action plan."""
     print("\n")
     print("=" * 80)
-    print("NODE: Human Gate 3 — Final Approval")
+    print("NODE: Human Gate 4 — Final Approval")
     print("=" * 80)
 
     recommendation = state.get("recommendation", "")
     action_plan = state.get("action_plan", "")
 
+    plan_round = state.get("plan_revision_round", 0)
+    log_file = f"action_plan_{plan_round + 1}.txt"
+
     if AUTO_APPROVE:
         print("  -> Auto-approved")
-        return {"human_feedback_3": "approved", "status": "finalize"}
+        _append_log(log_file, "\n=== HUMAN GATE 4 ===\nFeedback: auto-approved\n")
+        return {"human_feedback_4": "approved", "status": "finalize"}
 
     feedback = interrupt(
         f"--- RECOMMENDATION REPORT ---\n{recommendation}\n\n"
@@ -1213,12 +1426,14 @@ def human_gate_3(state: dict) -> dict:
 
     if not feedback or feedback.lower() in ("approve", "approved", "ok", "yes", "skip", "looks good", "lgtm"):
         print("  -> Approved — finalizing")
-        return {"human_feedback_3": "approved", "status": "finalize"}
+        _append_log(log_file, "\n=== HUMAN GATE 4 ===\nFeedback: approved\n")
+        return {"human_feedback_4": "approved", "status": "finalize"}
 
-    revision_round = state.get("plan_revision_round", 0) + 1
+    revision_round = plan_round + 1
     if revision_round >= MAX_HUMAN_REVISION_ON_PLAN:
         print(f"  ** Max plan revisions ({MAX_HUMAN_REVISION_ON_PLAN}) reached. Forcing approve. **")
-        return {"human_feedback_3": "approved", "status": "finalize", "plan_revision_round": revision_round}
+        _append_log(log_file, f"\n=== HUMAN GATE 4 ===\nFeedback: {feedback}\n(Max rounds reached — forced approve)\n")
+        return {"human_feedback_4": "approved", "status": "finalize", "plan_revision_round": revision_round}
 
     print(f"  -> Feedback: {feedback[:100]} (revision {revision_round}/{MAX_HUMAN_REVISION_ON_PLAN})")
 
@@ -1226,18 +1441,18 @@ def human_gate_3(state: dict) -> dict:
     action_plan_history = list(state.get("action_plan_history", []))
     action_plan_history.append({"role": "human", "content": feedback})
 
-    return {"human_feedback_3": feedback, "plan_revision_round": revision_round, "action_plan_history": action_plan_history}
+    return {"human_feedback_4": feedback, "plan_revision_round": revision_round, "action_plan_history": action_plan_history}
 
 
-# %% Routing: After Gate 3
-def route_after_gate_3(state: dict) -> Literal["action_plan_90d", "__end__"]:
+# %% Routing: After Gate 4
+def route_after_gate_4(state: dict) -> Literal["action_plan_90d", "__end__"]:
     """Approved → END. Feedback → revise action plan."""
-    if state.get("human_feedback_3") == "approved":
+    if state.get("human_feedback_4") == "approved":
         return "__end__"
     return "action_plan_90d"
 
 
-print("All node functions defined (11 nodes)")
+print("All node functions defined (12 nodes)")
 
 # ============================================================================
 # BUILD GRAPH
@@ -1247,17 +1462,18 @@ print("All node functions defined (11 nodes)")
 def build_graph(checkpointer=None):
     g = StateGraph(MBAAgentState)
 
-    # Add all 11 nodes
+    # Add nodes
     g.add_node("intake", intake)
     g.add_node("clarify_problem", clarify_problem)
     g.add_node("human_gate_1", human_gate_1)
     g.add_node("plan_research_topics", plan_research_topics)
+    g.add_node("human_gate_2", human_gate_2)
     g.add_node("research_and_propose", research_and_propose)
     g.add_node("topic_critic", topic_critic)
-    g.add_node("human_gate_2", human_gate_2)
+    g.add_node("human_gate_3", human_gate_3)
     g.add_node("synthesizer", synthesizer)
     g.add_node("action_plan_90d", action_plan_90d)
-    g.add_node("human_gate_3", human_gate_3)
+    g.add_node("human_gate_4", human_gate_4)
 
     # ── Phase 1: Intake ──
     g.add_edge(START, "intake")
@@ -1269,21 +1485,25 @@ def build_graph(checkpointer=None):
     })
 
     # ── Phase 2: Per-Topic Debate Loop ──
-    g.add_edge("plan_research_topics", "research_and_propose")
-    g.add_edge("research_and_propose", "topic_critic")
-    g.add_conditional_edges("topic_critic", route_after_critic, {
-        "human_gate_2": "human_gate_2",
+    g.add_edge("plan_research_topics", "human_gate_2")
+    g.add_conditional_edges("human_gate_2", route_after_gate_2, {
+        "plan_research_topics": "plan_research_topics",
         "research_and_propose": "research_and_propose",
     })
-    g.add_conditional_edges("human_gate_2", route_after_gate_2, {
+    g.add_edge("research_and_propose", "topic_critic")
+    g.add_conditional_edges("topic_critic", route_after_critic, {
+        "human_gate_3": "human_gate_3",
+        "research_and_propose": "research_and_propose",
+    })
+    g.add_conditional_edges("human_gate_3", route_after_gate_3, {
         "research_and_propose": "research_and_propose",
         "synthesizer": "synthesizer",
     })
 
     # ── Phase 3: Synthesis & Final Approval ──
     g.add_edge("synthesizer", "action_plan_90d")
-    g.add_edge("action_plan_90d", "human_gate_3")
-    g.add_conditional_edges("human_gate_3", route_after_gate_3, {
+    g.add_edge("action_plan_90d", "human_gate_4")
+    g.add_conditional_edges("human_gate_4", route_after_gate_4, {
         "action_plan_90d": "action_plan_90d",
         "__end__": END,
     })
@@ -1321,6 +1541,7 @@ if __name__ == "__main__":
     folder = f"{ts}_{args.name}" if args.name else ts
     output_dir = Path(__file__).resolve().parent / "results" / folder
     output_dir.mkdir(parents=True, exist_ok=True)
+    set_output_dir(output_dir)
 
     # ── Tee stdout to log.txt ──
     report_export.start_log(output_dir)

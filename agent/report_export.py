@@ -34,7 +34,8 @@ def start_log(output_dir: Path):
     """Start capturing stdout to output_dir/log.txt."""
     global _tee, _orig_stdout
     _orig_stdout = sys.stdout
-    _tee = _TeeWriter(output_dir / "log.txt", _orig_stdout)
+    (output_dir / "logs").mkdir(parents=True, exist_ok=True)
+    _tee = _TeeWriter(output_dir / "logs" / "console.txt", _orig_stdout)
     sys.stdout = _tee
 
 
@@ -197,5 +198,5 @@ def save_all(result: dict, config: dict, output_dir: Path, elapsed: float):
     except Exception as e:
         print(f"[WARNING] DOCX generation failed: {e}")
 
-    print(f"Log:      {output_dir / 'log.txt'}")
+    print(f"Log:      {output_dir / 'logs' / 'console.txt'}")
     print(f"\nAll outputs saved to: {output_dir}")

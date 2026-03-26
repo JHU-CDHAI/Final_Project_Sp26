@@ -69,6 +69,7 @@ def run(mba, config_dict: dict):
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     output_dir = Path(ts)
     output_dir.mkdir(parents=True, exist_ok=True)
+    mba.set_output_dir(output_dir)
     print(f"Output dir: {output_dir.resolve()}\n")
 
     # ── Start logging ──
@@ -90,7 +91,7 @@ def run(mba, config_dict: dict):
                     for intr in task.interrupts:
                         gate_num += 1
                         display(HTML("<hr style='border:3px solid #2E75B6; margin:24px 0 8px 0'>"))
-                        display(Markdown(f"### Human Input {gate_num}"))
+                        display(Markdown(f"### Human Gate {gate_num}"))
                         display(Markdown(str(intr.value)))
                         display(HTML("<hr style='border:3px solid #2E75B6; margin:8px 0 16px 0'>"))
 
