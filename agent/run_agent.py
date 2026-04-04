@@ -104,6 +104,7 @@ def run(mba, config_dict: dict):
 
         # ── Save reports ──
         report_export.save_all(result, config_dict, output_dir, elapsed)
+        mba.save_timings()
 
         # ── Copy to Google Drive ──
         if Path("/content/drive/MyDrive").exists():

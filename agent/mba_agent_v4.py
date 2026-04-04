@@ -264,9 +264,11 @@ def _truncate(text: str, max_chars: int = MAX_CONTEXT_CHARS, label: str = "text"
         return text[:max_chars]
     return text
 
-def web_search(query: str, max_results: int = 3) -> list[dict]:
+def web_search(query: str, max_results: int = 3, _node: str = "") -> list[dict]:
     """Search the web via Tavily. Raises on failure."""
+    t0 = time.time()
     results = _tavily.search(query=query, max_results=max_results)
+    _record("web_search", _node or "web_search", time.time() - t0, query[:80])
     return [
         {"title": r.get("title", ""), "url": r.get("url", ""), "content": r.get("content", "")}
         for r in results.get("results", [])
@@ -317,6 +319,60 @@ def _topic_log_filename(idx: int, topic: str) -> str:
     import re
     slug = re.sub(r'[^a-z0-9]+', '_', topic.lower())[:50].strip('_')
     return f"topic_{idx+1}_{slug}.txt"
+
+# ── Runtime tracking ──
+_timings: list[dict] = []
+
+def _record(category: str, node: str, elapsed: float, detail: str = ""):
+    """Record a timing entry. category is 'llm' or 'web_search'."""
+    _timings.append({"category": category, "node": node, "elapsed": elapsed, "detail": detail})
+    tag = "LLM" if category == "llm" else "Web"
+    print(f"  [{tag}] {elapsed:.1f}s{f' — {detail}' if detail else ''}")
+
+def save_timings():
+    """Write logs/timings.txt with all recorded timings grouped by phase."""
+    if not _timings:
+        return
+
+    # Define phase groupings by node prefix
+    phases = [
+        ("Phase 1 — Problem Intake", ["intake", "clarify_problem"]),
+        ("Phase 2 — Topic Planning", ["plan_research_topics"]),
+        ("Phase 3 — Research & Debate", ["research_topic_", "critic_topic_"]),
+        ("Phase 4 — Synthesis & Action", ["synthesizer", "action_plan"]),
+    ]
+
+    llm_total = sum(t["elapsed"] for t in _timings if t["category"] == "llm")
+    web_total = sum(t["elapsed"] for t in _timings if t["category"] == "web_search")
+    llm_count = len([t for t in _timings if t["category"] == "llm"])
+    web_count = len([t for t in _timings if t["category"] == "web_search"])
+
+    log = "=== RUNTIME BREAKDOWN ===\n"
+    assigned = set()
+    for phase_name, prefixes in phases:
+        phase_entries = []
+        for i, t in enumerate(_timings):
+            if i in assigned:
+                continue
+            if any(t["node"].startswith(p) for p in prefixes):
+                phase_entries.append(t)
+                assigned.add(i)
+        if not phase_entries:
+            continue
+        phase_total = sum(t["elapsed"] for t in phase_entries)
+        log += f"\n  {phase_name} ({phase_total:.1f}s)\n"
+        log += f"  {'-' * 50}\n"
+        for t in phase_entries:
+            tag = "LLM" if t["category"] == "llm" else "Web"
+            detail = f" — {t['detail']}" if t["detail"] else ""
+            log += f"    [{tag:3s}] {t['elapsed']:6.1f}s  {t['node']}{detail}\n"
+
+    log += f"\n  {'=' * 50}\n"
+    log += f"  LLM total:         {llm_total:6.1f}s  ({llm_count} calls)\n"
+    log += f"  Web search total:  {web_total:6.1f}s  ({web_count} calls)\n"
+    log += f"  Combined:          {llm_total + web_total:6.1f}s\n"
+    _append_log("timings.txt", log)
+    print(f"\n  Timings saved to logs/timings.txt")
 
 # ============================================================================
 # NODE FUNCTIONS
@@ -384,9 +440,11 @@ def intake(state: dict) -> dict:
     # Parse structured fields
     try:
         structured = llm_intake.with_structured_output(IntakeOutput)
+        t0 = time.time()
         result = structured.invoke([
             SystemMessage(content=INTAKE_PARSE_PROMPT),
             HumanMessage(content=user_text)])
+        _record("llm", "intake", time.time() - t0, "parse input")
         parsed = {
             "user_query": result.user_query,
             "country_or_market": result.country_or_market,
@@ -449,13 +507,17 @@ def clarify_problem(state: dict) -> dict:
     chat_msgs = _rebuild_chat_history(history)
     try:
         structured = llm_intake.with_structured_output(ClarifyOutput)
+        t0 = time.time()
         result = structured.invoke(chat_msgs)
+        _record("llm", "clarify_problem", time.time() - t0, "clarify")
         framing = result.problem_framing
         constraints_noted = result.constraints_noted
         questions = result.questions
     except Exception as e:
         print(f"  [Structured output failed: {e}] Falling back to text")
+        t0 = time.time()
         resp = llm_intake.invoke(chat_msgs)
+        _record("llm", "clarify_problem", time.time() - t0, "clarify (fallback)")
         framing = resp.content
         constraints_noted = ""
         questions = []
@@ -577,7 +639,9 @@ def plan_research_topics(state: dict) -> dict:
 
     chat_msgs = _rebuild_chat_history(history)
     structured = llm_intake.with_structured_output(TopicsOutput)
+    t0 = time.time()
     result = structured.invoke(chat_msgs)
+    _record("llm", "plan_research_topics", time.time() - t0, "generate topics")
     topics = result.topics[:MAX_RESEARCH_TOPICS]
 
     print(f"  Topics ({len(topics)}):")
@@ -741,7 +805,7 @@ def research_and_propose(state: dict) -> dict:
         # First round — broad topic search
         query = f"{topic} {market}" if market else topic
         try:
-            results = web_search(query, max_results=MAX_WEB_SEARCH_CT)
+            results = web_search(query, max_results=MAX_WEB_SEARCH_CT, _node=f"research_topic_{idx+1}")
         except Exception as e:
             print(f"  [WARNING] Web search failed: {e}")
             results = []
@@ -765,7 +829,7 @@ def research_and_propose(state: dict) -> dict:
         per_gap = max(1, MAX_WEB_SEARCH_CT // max(len(gap_queries), 1))
         for gq in gap_queries[:MAX_WEB_SEARCH_CT]:
             try:
-                results = web_search(gq, max_results=per_gap)
+                results = web_search(gq, max_results=per_gap, _node=f"research_topic_{idx+1}_gap")
                 all_results.extend(results)
             except Exception:
                 pass
@@ -790,8 +854,10 @@ def research_and_propose(state: dict) -> dict:
 
     try:
         structured = llm_researcher.with_structured_output(TopicProposalOutput)
+        t0 = time.time()
         result = structured.invoke([SystemMessage(content=RESEARCH_PROPOSE_PROMPT),
                                     HumanMessage(content=user_msg)])
+        _record("llm", f"research_topic_{idx+1}", time.time() - t0, f"round {debate_round+1}")
         proposal_dict = result.model_dump()
         # Serialize findings for storage
         proposal_dict["findings"] = [f.model_dump() if hasattr(f, "model_dump") else f for f in result.findings]
@@ -812,8 +878,10 @@ def research_and_propose(state: dict) -> dict:
         )
     except Exception as e:
         print(f"  [Structured output failed: {e}] Falling back to text")
+        t0 = time.time()
         resp = llm_researcher.invoke([SystemMessage(content=RESEARCH_PROPOSE_PROMPT),
                            HumanMessage(content=user_msg)])
+        _record("llm", f"research_topic_{idx+1}", time.time() - t0, f"round {debate_round+1} (fallback)")
         proposal_text = resp.content
         proposal_dict = {"topic": topic, "findings": [], "summary": _truncate(resp.content, label="proposal fallback summary"),
                          "proposal": resp.content, "key_recommendation": "See proposal text"}
@@ -943,8 +1011,10 @@ Debate round: {debate_round + 1} of max {MAX_DEBATE_ROUNDS}
     try:
         structured = llm_critic.with_structured_output(CriticOutput)
         critic_prompt = TOPIC_CRITIC_PROMPT.format(half_max=MAX_DEBATE_ROUNDS // 2)
+        t0 = time.time()
         result = structured.invoke([SystemMessage(content=critic_prompt),
                                     HumanMessage(content=user_msg)])
+        _record("llm", f"critic_topic_{idx+1}", time.time() - t0, f"round {debate_round+1}")
         assessment = result.assessment
         gaps = result.gaps
         converged = result.converged
@@ -1266,14 +1336,18 @@ IMPORTANT: Include a References section at the end with all source URLs from the
         log += "\n" + "-" * 40 + "\n"
     _append_log("synthesizer.txt", log)
 
+    t0 = time.time()
     resp = llm_synthesizer.invoke([SystemMessage(content=SYNTH_PROMPT),
                                     HumanMessage(content=user_msg)])
+    _record("llm", "synthesizer", time.time() - t0, "recommendation report")
     recommendation = resp.content
 
     if not recommendation:
         print("  [WARNING] Empty response, retrying with shorter prompt...")
+        t0 = time.time()
         resp = llm_synthesizer.invoke([SystemMessage(content=SYNTH_PROMPT),
                                         HumanMessage(content=f"Problem: {state.get('problem_framing', '')}\nTopics: {_truncate(approved_text, label='synthesizer retry')}\nWrite recommendation.")])
+        _record("llm", "synthesizer", time.time() - t0, "recommendation report (retry)")
         recommendation = resp.content
 
     print(f"  -> Report generated ({len(recommendation)} chars)")
@@ -1340,7 +1414,10 @@ Create a 90-day action plan based on the recommendation report above."""})
             "Revise the action plan based on the feedback above."})
 
     chat_msgs = _rebuild_chat_history(action_plan_history)
+    t0 = time.time()
     resp = llm_synthesizer.invoke(chat_msgs)
+    plan_round = state.get("plan_revision_round", 0)
+    _record("llm", "action_plan", time.time() - t0, f"round {plan_round + 1}")
     plan = resp.content
 
     # Append plan output to history
@@ -1602,6 +1679,7 @@ if __name__ == "__main__":
 
     # ── Save Results ──
     report_export.save_all(result, CFG, output_dir, elapsed)
+    save_timings()
 
     print("=" * 80)
     print("COMPLETE")
