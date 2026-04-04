@@ -18,8 +18,12 @@ _widget_layout = widgets.Layout(width="320px")
 _slider_layout = widgets.Layout(width="260px")
 
 
-def _labeled(label_text, w):
-    return widgets.HBox([widgets.Label(label_text, layout=_label_layout), w])
+def _labeled(label_text, w, hint=None):
+    row = widgets.HBox([widgets.Label(label_text, layout=_label_layout), w])
+    if hint:
+        hint_w = widgets.HTML(f'<p style="color:#888;font-size:12px;margin:0 0 4px 220px;">{hint}</p>')
+        return widgets.VBox([row, hint_w])
+    return row
 
 
 # ── Widgets ──
@@ -68,13 +72,20 @@ form = widgets.VBox([
     _labeled("Synthesizer:", model_synthesizer),
 
     widgets.HTML("<h3>Settings</h3>"),
-    _labeled("Max clarify rounds:", max_clarify),
-    _labeled("Max research topics:", max_topics),
-    _labeled("Max topic revisions:", max_topics_rev),
-    _labeled("Max web search results:", max_web),
-    _labeled("Max debate rounds:", max_debate),
-    _labeled("Max proposal revisions:", max_rev_proposal),
-    _labeled("Max plan revisions:", max_rev_plan),
+    _labeled("Max clarify rounds:", max_clarify,
+             "How many times the agent can ask you clarifying questions (Gate 1)"),
+    _labeled("Max research topics:", max_topics,
+             "Number of topics the agent will come up to research on"),
+    _labeled("Max topic revisions:", max_topics_rev,
+             "How many times you can revise the research topic list (Gate 2)"),
+    _labeled("Max web search results:", max_web,
+             "Tavily search results per query per debate round"),
+    _labeled("Max debate rounds:", max_debate,
+             "Researcher vs Critic rounds per topic before human review"),
+    _labeled("Max proposal revisions:", max_rev_proposal,
+             "How many times you can send a topic back for revision during research &amp; debate, for each topic (Gate 3)"),
+    _labeled("Max plan revisions:", max_rev_plan,
+             "How many times you can revise the final action plan (Gate 4)"),
 ])
 
 
