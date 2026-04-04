@@ -36,6 +36,7 @@ model_synthesizer = widgets.Dropdown(options=MODEL_OPTIONS, value="anthropic/cla
 
 max_clarify = widgets.BoundedIntText(value=5, min=1, max=10, layout=_slider_layout)
 max_topics = widgets.BoundedIntText(value=2, min=1, max=5, layout=_slider_layout)
+max_topics_rev = widgets.BoundedIntText(value=2, min=1, max=5, layout=_slider_layout)
 max_web = widgets.BoundedIntText(value=10, min=1, max=30, layout=_slider_layout)
 max_debate = widgets.BoundedIntText(value=2, min=1, max=10, layout=_slider_layout)
 max_rev_proposal = widgets.BoundedIntText(value=2, min=1, max=5, layout=_slider_layout)
@@ -69,6 +70,7 @@ form = widgets.VBox([
     widgets.HTML("<h3>Settings</h3>"),
     _labeled("Max clarify rounds:", max_clarify),
     _labeled("Max research topics:", max_topics),
+    _labeled("Max topic revisions:", max_topics_rev),
     _labeled("Max web search results:", max_web),
     _labeled("Max debate rounds:", max_debate),
     _labeled("Max proposal revisions:", max_rev_proposal),
@@ -93,6 +95,7 @@ def get_config() -> dict:
         },
         "max_clarify_rounds": max_clarify.value,
         "max_research_topics": max_topics.value,
+        "max_topics_revision": max_topics_rev.value,
         "max_web_search_ct": max_web.value,
         "max_debate_rounds": max_debate.value,
         "max_human_revision_on_proposal": max_rev_proposal.value,
