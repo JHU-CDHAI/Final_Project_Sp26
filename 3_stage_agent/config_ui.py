@@ -4,12 +4,9 @@ import ipywidgets as widgets
 from IPython.display import display
 
 MODEL_OPTIONS = [
-    "openai/gpt-4o",
     "openai/gpt-5.2",
-    "openai/o3-mini",
-    "google/gemini-3-flash-preview",
-    "anthropic/claude-sonnet-4.5",
     "anthropic/claude-opus-4.6",
+    "google/gemini-3-flash-preview",
 ]
 
 _label_layout = widgets.Layout(width="220px")
@@ -36,7 +33,7 @@ _s1_query = widgets.Textarea(
     placeholder="Please type your business question here...",
     layout=widgets.Layout(width="550px", height="80px"),
 )
-_s1_model = widgets.Dropdown(options=MODEL_OPTIONS, value="openai/gpt-4o", layout=_widget_layout)
+_s1_model = widgets.Dropdown(options=MODEL_OPTIONS, value="openai/gpt-5.2", layout=_widget_layout)
 _s1_max_clarify = widgets.BoundedIntText(value=5, min=1, max=10, layout=_slider_layout)
 _s1_max_topics = widgets.BoundedIntText(value=2, min=1, max=5, layout=_slider_layout)
 _s1_max_topics_rev = widgets.BoundedIntText(value=2, min=1, max=5, layout=_slider_layout)
@@ -81,8 +78,8 @@ def get_config_stage1() -> dict:
         },
         # Placeholders so config.yaml stays complete
         "stage2_research": {
-            "model_researcher": "openai/gpt-4o",
-            "model_critic": "openai/gpt-4o",
+            "model_researcher": "openai/gpt-5.2",
+            "model_critic": "openai/gpt-5.2",
             "max_web_search_ct": 10,
             "max_debate_rounds": 2,
             "max_human_revision_on_proposal": 2,
@@ -98,8 +95,8 @@ def get_config_stage1() -> dict:
 # STAGE 2 — Research & Debate
 # ============================================================================
 
-_s2_model_researcher = widgets.Dropdown(options=MODEL_OPTIONS, value="openai/gpt-4o", layout=_widget_layout)
-_s2_model_critic = widgets.Dropdown(options=MODEL_OPTIONS, value="openai/gpt-4o", layout=_widget_layout)
+_s2_model_researcher = widgets.Dropdown(options=MODEL_OPTIONS, value="openai/gpt-5.2", layout=_widget_layout)
+_s2_model_critic = widgets.Dropdown(options=MODEL_OPTIONS, value="openai/gpt-5.2", layout=_widget_layout)
 _s2_max_web = widgets.BoundedIntText(value=10, min=1, max=30, layout=_slider_layout)
 _s2_max_debate = widgets.BoundedIntText(value=2, min=1, max=10, layout=_slider_layout)
 _s2_max_rev_proposal = widgets.BoundedIntText(value=2, min=1, max=5, layout=_slider_layout)
@@ -135,7 +132,7 @@ def get_config_stage2() -> dict:
         "openrouter_base_url": "https://openrouter.ai/api/v1",
         "auto_approve": False,
         "stage1_intake": {
-            "model": "openai/gpt-4o",
+            "model": "openai/gpt-5.2",
             "max_clarify_rounds": 5,
             "max_research_topics": 2,
             "max_topics_revision": 2,
@@ -187,14 +184,14 @@ def get_config_stage3() -> dict:
         "openrouter_base_url": "https://openrouter.ai/api/v1",
         "auto_approve": False,
         "stage1_intake": {
-            "model": "openai/gpt-4o",
+            "model": "openai/gpt-5.2",
             "max_clarify_rounds": 5,
             "max_research_topics": 2,
             "max_topics_revision": 2,
         },
         "stage2_research": {
-            "model_researcher": "openai/gpt-4o",
-            "model_critic": "openai/gpt-4o",
+            "model_researcher": "openai/gpt-5.2",
+            "model_critic": "openai/gpt-5.2",
             "max_web_search_ct": 10,
             "max_debate_rounds": 2,
             "max_human_revision_on_proposal": 2,

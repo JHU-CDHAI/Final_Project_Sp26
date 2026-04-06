@@ -6,25 +6,22 @@ input_query: "How should I start a beverage business in Sweden?"
 openrouter_base_url: "https://openrouter.ai/api/v1"
 auto_approve: false
 
-# Available models (tested & working on our OpenRouter key)
-#   openai/gpt-4o
+# Available models
 #   openai/gpt-5.2
-#   openai/o3-mini
-#   google/gemini-3-flash-preview
-#   anthropic/claude-sonnet-4.5
 #   anthropic/claude-opus-4.6
+#   google/gemini-3-flash-preview
 
 # ── Stage 1: Problem Intake & Topic Planning ──
 stage1_intake:
-  model: "openai/gpt-4o"
+  model: "openai/gpt-5.2"
   max_clarify_rounds: 5
   max_research_topics: 2
   max_topics_revision: 2
 
 # ── Stage 2: Research & Debate ──
 stage2_research:
-  model_researcher: "openai/gpt-4o"
-  model_critic: "openai/gpt-4o"
+  model_researcher: "openai/gpt-5.2"
+  model_critic: "openai/gpt-5.2"
   max_web_search_ct: 10
   max_debate_rounds: 2
   max_human_revision_on_proposal: 2
