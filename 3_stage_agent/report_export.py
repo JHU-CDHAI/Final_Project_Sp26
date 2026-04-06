@@ -1,7 +1,6 @@
 """Export agent results to Markdown, YAML metadata, and DOCX."""
 
 import sys
-import yaml
 from datetime import datetime
 from pathlib import Path
 
@@ -84,7 +83,7 @@ def _md_lines_to_docx(doc, text):
 
 
 def save_all(result: dict, config: dict, output_dir: Path, elapsed: float):
-    """Save Markdown, meta.yaml, and DOCX report to *output_dir*."""
+    """Save Markdown and DOCX report to *output_dir*."""
     ts = output_dir.name
     agents_str = ", ".join(
         f'{k}={v["model"]}' for k, v in config["agents"].items()
@@ -100,22 +99,6 @@ def save_all(result: dict, config: dict, output_dir: Path, elapsed: float):
         f.write("\n\n---\n\n")
         f.write(result.get("action_plan", ""))
     print(f"Markdown: {md_path}")
-
-    # ── meta.yaml ──
-    with open(output_dir / "meta.yaml", "w", encoding="utf-8") as f:
-        yaml.dump(
-            {
-                "timestamp": datetime.now().isoformat(),
-                "input_query": config["input_query"],
-                "auto_approve": False,
-                "models": {k: v["model"] for k, v in config["agents"].items()},
-                "elapsed_seconds": round(elapsed, 1),
-            },
-            f,
-            default_flow_style=False,
-            sort_keys=False,
-        )
-    print(f"Meta:     {output_dir / 'meta.yaml'}")
 
     # ── DOCX (optional) ──
     try:

@@ -30,7 +30,7 @@ from common import (
     _truncate, _build_debate_context,
     web_search,
     set_output_dir, _append_log, _topic_log_filename, _record, save_timings,
-    save_handoff, load_handoff,
+    save_handoff, save_meta, load_handoff,
     RESEARCH_PROPOSE_PROMPT, TOPIC_CRITIC_PROMPT,
 )
 
@@ -516,10 +516,8 @@ if __name__ == "__main__":
     print(f"  Topics: {handoff['research_topics']}")
 
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    folder_name = f"2_research_{ts}"
-    if args.name:
-        folder_name += f"_{args.name}"
-    output_dir = Path(__file__).resolve().parent / "results" / folder_name
+    folder_name = f"{ts}_{args.name}" if args.name else ts
+    output_dir = Path(__file__).resolve().parent / "results" / "stage2_research" / folder_name
     output_dir.mkdir(parents=True, exist_ok=True)
     set_output_dir(output_dir)
 
@@ -597,6 +595,25 @@ if __name__ == "__main__":
     }
     save_handoff(handoff_out, output_dir)
     save_timings()
+
+    # ── Meta ──
+    approved = result.get("approved_topics", [])
+    topics = handoff["research_topics"]
+    save_meta([
+        f"Stage:            2 — Research & Debate",
+        f"Timestamp:        {datetime.now().isoformat()}",
+        f"Input (Stage 1):  {args.input}",
+        f"Elapsed:          {elapsed:.1f}s",
+        f"",
+        f"Models:",
+        f"  researcher    {AGENTS['researcher']['model']}",
+        f"  critic        {AGENTS['critic']['model']}",
+        f"",
+        f"Settings:",
+        f"  Max web search results:     {MAX_WEB_SEARCH_CT}",
+        f"  Max debate rounds:          {MAX_DEBATE_ROUNDS}",
+        f"  Max proposal revisions:     {MAX_HUMAN_REVISION_ON_PROPOSAL}",
+    ], output_dir)
 
     print("\n" + "=" * 80)
     print("STAGE 2 COMPLETE")

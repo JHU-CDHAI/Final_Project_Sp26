@@ -25,7 +25,7 @@ from common import (
     llm_intake,
     IntakeOutput, ClarifyOutput, TopicsOutput,
     _msg_text, _truncate, _rebuild_chat_history,
-    set_output_dir, _append_log, _record, save_timings, save_handoff,
+    set_output_dir, _append_log, _record, save_timings, save_handoff, save_meta,
     INTAKE_SYSTEM_PROMPT, INTAKE_PARSE_PROMPT, CLARIFY_INSTRUCTION,
     PLAN_TOPICS_INSTRUCTION,
 )
@@ -381,10 +381,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    folder_name = f"1_intake_{ts}"
-    if args.name:
-        folder_name += f"_{args.name}"
-    output_dir = Path(__file__).resolve().parent / "results" / folder_name
+    folder_name = f"{ts}_{args.name}" if args.name else ts
+    output_dir = Path(__file__).resolve().parent / "results" / "stage1_intake" / folder_name
     output_dir.mkdir(parents=True, exist_ok=True)
     set_output_dir(output_dir)
 
@@ -444,6 +442,23 @@ if __name__ == "__main__":
     }
     save_handoff(handoff, output_dir)
     save_timings()
+
+    # ── Meta ──
+    topics = result.get("research_topics", [])
+    save_meta([
+        f"Stage:            1 — Problem Intake & Topic Planning",
+        f"Timestamp:        {datetime.now().isoformat()}",
+        f"Input Query:      {INPUT_QUERY}",
+        f"Elapsed:          {elapsed:.1f}s",
+        f"",
+        f"Model:",
+        f"  intake        {AGENTS['intake']['model']}",
+        f"",
+        f"Settings:",
+        f"  Max clarify rounds:    {MAX_CLARIFY_ROUNDS}",
+        f"  Max research topics:   {MAX_RESEARCH_TOPICS}",
+        f"  Max topics revision:   {MAX_TOPICS_REVISION}",
+    ], output_dir)
 
     print("\n" + "=" * 80)
     print("STAGE 1 COMPLETE")

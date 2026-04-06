@@ -235,8 +235,6 @@ _timings: list[dict] = []
 
 def _record(category: str, node: str, elapsed: float, detail: str = ""):
     _timings.append({"category": category, "node": node, "elapsed": elapsed, "detail": detail})
-    tag = "LLM" if category == "llm" else "Web"
-    print(f"  [{tag}] {elapsed:.1f}s{f' — {detail}' if detail else ''}")
 
 def save_timings():
     if not _timings:
@@ -284,6 +282,14 @@ def save_timings():
 # ============================================================================
 # HANDOFF I/O
 # ============================================================================
+
+def save_meta(lines: list[str], output_dir: Path):
+    """Write meta.txt with key-value info for this stage."""
+    path = output_dir / "meta.txt"
+    with open(path, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines) + "\n")
+    print(f"  Meta saved: {path}")
+
 
 def save_handoff(data: dict, output_dir: Path):
     """Save state handoff as JSON for the next stage."""

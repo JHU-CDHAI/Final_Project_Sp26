@@ -25,7 +25,7 @@ from common import (
     llm_synthesizer,
     _truncate, _rebuild_chat_history,
     set_output_dir, _append_log, _record, save_timings,
-    load_handoff,
+    save_meta, load_handoff,
     SYNTH_PROMPT, ACTION_PLAN_PROMPT,
 )
 
@@ -319,10 +319,8 @@ if __name__ == "__main__":
     print(f"  Approved topics: {len(handoff.get('approved_topics', []))}")
 
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    folder_name = f"3_synthesis_{ts}"
-    if args.name:
-        folder_name += f"_{args.name}"
-    output_dir = Path(__file__).resolve().parent / "results" / folder_name
+    folder_name = f"{ts}_{args.name}" if args.name else ts
+    output_dir = Path(__file__).resolve().parent / "results" / "stage3_synthesis" / folder_name
     output_dir.mkdir(parents=True, exist_ok=True)
     set_output_dir(output_dir)
 
@@ -381,6 +379,22 @@ if __name__ == "__main__":
     }
     report_export.save_all(result, export_config, output_dir, elapsed)
     save_timings()
+
+    # ── Meta ──
+    approved = handoff.get("approved_topics", [])
+    topic_names = [a.get("topic", "?") for a in approved]
+    save_meta([
+        f"Stage:            3 — Synthesis & Action Plan",
+        f"Timestamp:        {datetime.now().isoformat()}",
+        f"Input (Stage 2):  {args.input}",
+        f"Elapsed:          {elapsed:.1f}s",
+        f"",
+        f"Model:",
+        f"  synthesizer   {AGENTS['synthesizer']['model']}",
+        f"",
+        f"Settings:",
+        f"  Max plan revisions:   {MAX_HUMAN_REVISION_ON_PLAN}",
+    ], output_dir)
 
     print("\n" + "=" * 80)
     print("STAGE 3 COMPLETE")
