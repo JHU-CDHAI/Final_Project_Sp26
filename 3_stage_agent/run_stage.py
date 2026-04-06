@@ -190,18 +190,25 @@ def load_stage2(config_ui, repo_dir: str):
     return mod, config_dict
 
 
-def run_stage2(mod, config_dict: dict):
-    """Run stage 2 and save outputs."""
+def run_stage2(mod, config_dict: dict, handoff_path: str = ""):
+    """Run stage 2 and save outputs.
+
+    Parameters
+    ----------
+    handoff_path : str
+        Path to the uploaded handoff.json file from Stage 1.
+    """
+    import json as _json
     from common import (
-        load_handoff, save_handoff, save_summary_stage2,
+        save_handoff, save_summary_stage2,
         save_meta, save_timings,
     )
 
-    input_path = config_dict["input_path"]
-    if not input_path:
-        raise ValueError("Please enter the path to your Stage 1 output folder.")
-    handoff_in = load_handoff(input_path)
-    print(f"Loaded handoff from: {input_path}")
+    if not handoff_path:
+        raise ValueError("Please upload your Stage 1 handoff.json file.")
+    with open(handoff_path, "r", encoding="utf-8") as f:
+        handoff_in = _json.load(f)
+    print(f"Loaded handoff from: {handoff_path}")
     print(f"Topics: {handoff_in['research_topics']}")
 
     agent = mod.build_graph(checkpointer=MemorySaver())
@@ -253,7 +260,7 @@ def run_stage2(mod, config_dict: dict):
             "model_researcher": _s2_cfg["model_researcher"],
             "model_critic": _s2_cfg["model_critic"],
             "input_query": handoff_in.get("config", {}).get("input_query", ""),
-            "stage1_dir": str(input_path),
+            "stage1_dir": str(handoff_path),
         },
     }
     save_handoff(handoff_out, output_dir)
@@ -263,7 +270,7 @@ def run_stage2(mod, config_dict: dict):
     save_meta([
         f"Stage:            2 — Research & Debate",
         f"Timestamp:        {datetime.now().isoformat()}",
-        f"Input (Stage 1):  {input_path}",
+        f"Input (Stage 1):  {handoff_path}",
         f"Elapsed:          {elapsed:.1f}s",
         f"",
         f"Models:",
@@ -312,15 +319,22 @@ def load_stage3(config_ui, repo_dir: str):
     return mod, config_dict
 
 
-def run_stage3(mod, config_dict: dict):
-    """Run stage 3 and save final reports."""
-    from common import load_handoff, save_meta, save_timings
+def run_stage3(mod, config_dict: dict, handoff_path: str = ""):
+    """Run stage 3 and save final reports.
 
-    input_path = config_dict["input_path"]
-    if not input_path:
-        raise ValueError("Please enter the path to your Stage 2 output folder.")
-    handoff_in = load_handoff(input_path)
-    print(f"Loaded handoff from: {input_path}")
+    Parameters
+    ----------
+    handoff_path : str
+        Path to the uploaded handoff.json file from Stage 2.
+    """
+    import json as _json
+    from common import save_meta, save_timings
+
+    if not handoff_path:
+        raise ValueError("Please upload your Stage 2 handoff.json file.")
+    with open(handoff_path, "r", encoding="utf-8") as f:
+        handoff_in = _json.load(f)
+    print(f"Loaded handoff from: {handoff_path}")
     print(f"Approved topics: {len(handoff_in.get('approved_topics', []))}")
 
     agent = mod.build_graph(checkpointer=MemorySaver())
@@ -367,7 +381,7 @@ def run_stage3(mod, config_dict: dict):
     save_meta([
         f"Stage:            3 — Synthesis & Action Plan",
         f"Timestamp:        {datetime.now().isoformat()}",
-        f"Input (Stage 2):  {input_path}",
+        f"Input (Stage 2):  {handoff_path}",
         f"Elapsed:          {elapsed:.1f}s",
         f"",
         f"Model:",

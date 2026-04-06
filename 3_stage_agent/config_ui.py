@@ -98,11 +98,6 @@ def get_config_stage1() -> dict:
 # STAGE 2 — Research & Debate
 # ============================================================================
 
-_s2_input_path = widgets.Text(
-    value="",
-    placeholder="Paste the path to your Stage 1 output folder...",
-    layout=widgets.Layout(width="550px"),
-)
 _s2_model_researcher = widgets.Dropdown(options=MODEL_OPTIONS, value="openai/gpt-4o", layout=_widget_layout)
 _s2_model_critic = widgets.Dropdown(options=MODEL_OPTIONS, value="openai/gpt-4o", layout=_widget_layout)
 _s2_max_web = widgets.BoundedIntText(value=10, min=1, max=30, layout=_slider_layout)
@@ -112,15 +107,11 @@ _s2_max_rev_proposal = widgets.BoundedIntText(value=2, min=1, max=5, layout=_sli
 _s2_form = widgets.VBox([
     widgets.HTML(
         '<p style="color:#000;font-weight:500;font-size:18px;margin:0 0 8px;">'
-        'Paste the path to your Stage 1 output folder below, then configure '
-        'the research & debate settings.</p>'
+        'Choose AI models and settings for the research &amp; debate phase.</p>'
         '<p style="color:#d32f2f;font-weight:600;font-size:18px;margin:0 0 8px;">'
         'Warning: Once your settings are finalized, proceed directly to the Run step. '
         "Re-running this cell will reset everything to the default configuration.</p>"
     ),
-    widgets.HTML("<h3>Stage 1 Output</h3>"),
-    _labeled("Input path:", _s2_input_path,
-             "Path to the Stage 1 output folder (contains handoff.json)"),
     widgets.HTML("<h3>Models</h3>"),
     _labeled("Researcher:", _s2_model_researcher),
     _labeled("Critic:", _s2_model_critic),
@@ -140,7 +131,6 @@ def show_stage2():
 
 def get_config_stage2() -> dict:
     return {
-        "input_path": _s2_input_path.value.strip(),
         "input_query": "",
         "openrouter_base_url": "https://openrouter.ai/api/v1",
         "auto_approve": False,
@@ -168,26 +158,17 @@ def get_config_stage2() -> dict:
 # STAGE 3 — Synthesis & Action Plan
 # ============================================================================
 
-_s3_input_path = widgets.Text(
-    value="",
-    placeholder="Paste the path to your Stage 2 output folder...",
-    layout=widgets.Layout(width="550px"),
-)
 _s3_model = widgets.Dropdown(options=MODEL_OPTIONS, value="anthropic/claude-opus-4.6", layout=_widget_layout)
 _s3_max_rev_plan = widgets.BoundedIntText(value=2, min=1, max=5, layout=_slider_layout)
 
 _s3_form = widgets.VBox([
     widgets.HTML(
         '<p style="color:#000;font-weight:500;font-size:18px;margin:0 0 8px;">'
-        'Paste the path to your Stage 2 output folder below, then configure '
-        'the synthesis settings.</p>'
+        'Choose the synthesizer model and settings.</p>'
         '<p style="color:#d32f2f;font-weight:600;font-size:18px;margin:0 0 8px;">'
         'Warning: Once your settings are finalized, proceed directly to the Run step. '
         "Re-running this cell will reset everything to the default configuration.</p>"
     ),
-    widgets.HTML("<h3>Stage 2 Output</h3>"),
-    _labeled("Input path:", _s3_input_path,
-             "Path to the Stage 2 output folder (contains handoff.json)"),
     widgets.HTML("<h3>Model</h3>"),
     _labeled("Synthesizer:", _s3_model),
     widgets.HTML("<h3>Settings</h3>"),
@@ -202,7 +183,6 @@ def show_stage3():
 
 def get_config_stage3() -> dict:
     return {
-        "input_path": _s3_input_path.value.strip(),
         "input_query": "",
         "openrouter_base_url": "https://openrouter.ai/api/v1",
         "auto_approve": False,
