@@ -1,0 +1,36 @@
+# MBA Strategy Agent v4 — Configuration
+# Edit this file to customize the agent behavior and scenario.
+# Secrets (OPENROUTER_API_KEY, TAVILY_API_KEY) stay in .env
+
+# Business scenario (intake node parses the query into structured fields)
+input_query: "How should I start a beverage business in Sweden?"
+
+# API
+openrouter_base_url: "https://openrouter.ai/api/v1"
+
+# Available models (tested & working on our OpenRouter key)
+#   openai/gpt-4o
+#   openai/gpt-5.2
+#   openai/o3-mini
+#   google/gemini-3-flash-preview
+#   anthropic/claude-sonnet-4.5
+#   anthropic/claude-opus-4.6
+
+# Agents — each has its own model (temperature optional, omit to use API default)
+agents:
+  intake:       { model: "openai/gpt-4o" }       # Intake, Clarify, Plan Topics
+  researcher:   { model: "openai/gpt-4o" }       # Research & Propose
+  critic:       { model: "openai/gpt-4o" }       # Critic
+  synthesizer:  { model: "openai/gpt-4o" }       # Synthesizer, Action Plan
+
+# Agent behavior
+auto_approve: false
+max_clarify_rounds: 5 # human gate 1
+max_research_topics: 2
+max_topics_revision: 2 # human gate 2
+
+max_web_search_ct: 10
+max_debate_rounds: 2 # proposal vs critic
+max_human_revision_on_proposal: 2 # human gate 3
+
+max_human_revision_on_plan: 2 # human gate 4
