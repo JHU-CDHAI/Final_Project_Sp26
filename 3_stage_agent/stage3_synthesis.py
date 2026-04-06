@@ -6,7 +6,7 @@ Pipeline:
   START -> synthesizer -> action_plan_90d -> [Gate 4] -> END
 
 Input:  --input <path to stage 2 output folder> (loads handoff.json)
-Output: Final reports (Markdown, DOCX, meta.yaml) + logs
+Output: Final reports (Markdown, DOCX, meta.txt) + logs
 """
 
 import json
@@ -20,17 +20,23 @@ from langgraph.graph import StateGraph, START, END, MessagesState
 from langgraph.types import interrupt
 
 from common import (
-    CFG, AGENTS, AUTO_APPROVE,
-    MAX_HUMAN_REVISION_ON_PLAN, MAX_CONTEXT_CHARS,
-    llm_synthesizer,
+    CFG, AUTO_APPROVE, MAX_CONTEXT_CHARS, make_llm,
     _truncate, _rebuild_chat_history,
     set_output_dir, _append_log, _record, save_timings,
     save_meta, load_handoff,
     SYNTH_PROMPT, ACTION_PLAN_PROMPT,
 )
 
+# ── Stage config ──
+_STAGE_CFG = CFG["stage3_synthesis"]
+_MODEL = _STAGE_CFG["model"]
+MAX_HUMAN_REVISION_ON_PLAN = _STAGE_CFG["max_human_revision_on_plan"]
+
+llm_synthesizer = make_llm(_MODEL)
+
 print("=" * 80)
 print("STAGE 3 — Synthesis & Action Plan")
+print(f"  Model: {_MODEL}")
 print("=" * 80)
 
 # ============================================================================
@@ -191,7 +197,7 @@ FINAL MBA STRATEGY REPORT
 {'='*60}
 METADATA
 {'='*60}
-Agents: {json.dumps({k: v['model'] for k, v in AGENTS.items()})}
+Model: {_MODEL}
 Topics researched: {n_topics}
 Topic names: {', '.join(topic_names)}
 Web search: Tavily
@@ -375,7 +381,12 @@ if __name__ == "__main__":
     stage_config = handoff.get("config", {})
     export_config = {
         "input_query": stage_config.get("input_query", handoff.get("user_query", "")),
-        "agents": stage_config.get("agents", AGENTS),
+        "agents": {
+            "intake":      {"model": stage_config.get("model_intake", "?")},
+            "researcher":  {"model": stage_config.get("model_researcher", "?")},
+            "critic":      {"model": stage_config.get("model_critic", "?")},
+            "synthesizer": {"model": _MODEL},
+        },
     }
     report_export.save_all(result, export_config, output_dir, elapsed)
     save_timings()
@@ -390,7 +401,7 @@ if __name__ == "__main__":
         f"Elapsed:          {elapsed:.1f}s",
         f"",
         f"Model:",
-        f"  synthesizer   {AGENTS['synthesizer']['model']}",
+        f"  synthesizer   {_MODEL}",
         f"",
         f"Settings:",
         f"  Max plan revisions:   {MAX_HUMAN_REVISION_ON_PLAN}",

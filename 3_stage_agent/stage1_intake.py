@@ -20,18 +20,27 @@ from langgraph.graph import StateGraph, START, END, MessagesState
 from langgraph.types import interrupt
 
 from common import (
-    CFG, AGENTS, AUTO_APPROVE, INPUT_QUERY,
-    MAX_CLARIFY_ROUNDS, MAX_RESEARCH_TOPICS, MAX_TOPICS_REVISION,
-    llm_intake,
+    CFG, AUTO_APPROVE, INPUT_QUERY, make_llm,
     IntakeOutput, ClarifyOutput, TopicsOutput,
     _msg_text, _truncate, _rebuild_chat_history,
-    set_output_dir, _append_log, _record, save_timings, save_handoff, save_meta,
+    set_output_dir, _append_log, _record, save_timings,
+    save_handoff, save_meta, save_summary_stage1,
     INTAKE_SYSTEM_PROMPT, INTAKE_PARSE_PROMPT, CLARIFY_INSTRUCTION,
     PLAN_TOPICS_INSTRUCTION,
 )
 
+# ── Stage config ──
+_STAGE_CFG = CFG["stage1_intake"]
+_MODEL = _STAGE_CFG["model"]
+MAX_CLARIFY_ROUNDS = _STAGE_CFG["max_clarify_rounds"]
+MAX_RESEARCH_TOPICS = _STAGE_CFG["max_research_topics"]
+MAX_TOPICS_REVISION = _STAGE_CFG["max_topics_revision"]
+
+llm_intake = make_llm(_MODEL)
+
 print("=" * 80)
 print("STAGE 1 — Problem Intake & Topic Planning")
+print(f"  Model: {_MODEL}")
 print("=" * 80)
 
 # ============================================================================
@@ -393,10 +402,6 @@ if __name__ == "__main__":
     print(f"  Query:        {INPUT_QUERY}")
     print(f"  Auto-approve: {AUTO_APPROVE}")
     print(f"  Output dir:   {output_dir}")
-    print()
-    for name, cfg in AGENTS.items():
-        temp_str = f"  temp={cfg['temperature']}" if "temperature" in cfg else ""
-        print(f"    {name:12s}  {cfg['model']:40s}{temp_str}")
     print("=" * 80)
 
     agent = build_graph(checkpointer=MemorySaver())
@@ -436,11 +441,12 @@ if __name__ == "__main__":
         "research_topics": result.get("research_topics", []),
         "research_brief": result.get("research_brief", ""),
         "config": {
-            "agents": AGENTS,
+            "model_intake": _MODEL,
             "input_query": INPUT_QUERY,
         },
     }
     save_handoff(handoff, output_dir)
+    save_summary_stage1(handoff, output_dir)
     save_timings()
 
     # ── Meta ──
@@ -452,7 +458,7 @@ if __name__ == "__main__":
         f"Elapsed:          {elapsed:.1f}s",
         f"",
         f"Model:",
-        f"  intake        {AGENTS['intake']['model']}",
+        f"  intake        {_MODEL}",
         f"",
         f"Settings:",
         f"  Max clarify rounds:    {MAX_CLARIFY_ROUNDS}",

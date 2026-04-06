@@ -1,12 +1,10 @@
-# MBA Strategy Agent v4 — Configuration
-# Edit this file to customize the agent behavior and scenario.
+# 3-Stage MBA Strategy Agent — Configuration
 # Secrets (OPENROUTER_API_KEY, TAVILY_API_KEY) stay in .env
 
-# Business scenario (intake node parses the query into structured fields)
+# ── Global ──
 input_query: "How should I start a beverage business in Sweden?"
-
-# API
 openrouter_base_url: "https://openrouter.ai/api/v1"
+auto_approve: false
 
 # Available models (tested & working on our OpenRouter key)
 #   openai/gpt-4o
@@ -16,21 +14,22 @@ openrouter_base_url: "https://openrouter.ai/api/v1"
 #   anthropic/claude-sonnet-4.5
 #   anthropic/claude-opus-4.6
 
-# Agents — each has its own model (temperature optional, omit to use API default)
-agents:
-  intake:       { model: "openai/gpt-4o" }       # Intake, Clarify, Plan Topics
-  researcher:   { model: "openai/gpt-4o" }       # Research & Propose
-  critic:       { model: "openai/gpt-4o" }       # Critic
-  synthesizer:  { model: "openai/gpt-4o" }       # Synthesizer, Action Plan
+# ── Stage 1: Problem Intake & Topic Planning ──
+stage1_intake:
+  model: "openai/gpt-4o"
+  max_clarify_rounds: 5
+  max_research_topics: 2
+  max_topics_revision: 2
 
-# Agent behavior
-auto_approve: false
-max_clarify_rounds: 5 # human gate 1
-max_research_topics: 2
-max_topics_revision: 2 # human gate 2
+# ── Stage 2: Research & Debate ──
+stage2_research:
+  model_researcher: "openai/gpt-4o"
+  model_critic: "openai/gpt-4o"
+  max_web_search_ct: 10
+  max_debate_rounds: 2
+  max_human_revision_on_proposal: 2
 
-max_web_search_ct: 10
-max_debate_rounds: 2 # proposal vs critic
-max_human_revision_on_proposal: 2 # human gate 3
-
-max_human_revision_on_plan: 2 # human gate 4
+# ── Stage 3: Synthesis & Action Plan ──
+stage3_synthesis:
+  model: "anthropic/claude-opus-4.6"
+  max_human_revision_on_plan: 2

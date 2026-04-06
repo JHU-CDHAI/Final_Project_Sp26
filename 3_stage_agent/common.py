@@ -46,17 +46,8 @@ with open(_config_path) as _f:
 OPENROUTER_BASE_URL = CFG.get("openrouter_base_url", "https://openrouter.ai/api/v1")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 
-AGENTS = CFG["agents"]
 AUTO_APPROVE = CFG.get("auto_approve", False)
 INPUT_QUERY = CFG["input_query"]
-
-MAX_CLARIFY_ROUNDS = CFG["max_clarify_rounds"]
-MAX_RESEARCH_TOPICS = CFG["max_research_topics"]
-MAX_TOPICS_REVISION = CFG.get("max_topics_revision", 2)
-MAX_WEB_SEARCH_CT = CFG["max_web_search_ct"]
-MAX_DEBATE_ROUNDS = CFG["max_debate_rounds"]
-MAX_HUMAN_REVISION_ON_PROPOSAL = CFG["max_human_revision_on_proposal"]
-MAX_HUMAN_REVISION_ON_PLAN = CFG["max_human_revision_on_plan"]
 
 MAX_CONTEXT_CHARS = 300_000
 
@@ -64,23 +55,14 @@ MAX_CONTEXT_CHARS = 300_000
 # LLM FACTORY
 # ============================================================================
 
-def _make_llm(agent_name: str) -> ChatOpenAI:
-    cfg = AGENTS[agent_name]
-    model_id = cfg["model"]
-    kwargs = dict(
+def make_llm(model_id: str) -> ChatOpenAI:
+    """Create a ChatOpenAI instance routed through OpenRouter."""
+    return ChatOpenAI(
         model=model_id,
         base_url=OPENROUTER_BASE_URL,
         api_key=OPENROUTER_API_KEY,
         max_retries=3,
     )
-    if "temperature" in cfg:
-        kwargs["temperature"] = cfg["temperature"]
-    return ChatOpenAI(**kwargs)
-
-llm_intake = _make_llm("intake")
-llm_researcher = _make_llm("researcher")
-llm_critic = _make_llm("critic")
-llm_synthesizer = _make_llm("synthesizer")
 
 # ============================================================================
 # PYDANTIC OUTPUT MODELS
@@ -289,6 +271,73 @@ def save_meta(lines: list[str], output_dir: Path):
     with open(path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines) + "\n")
     print(f"  Meta saved: {path}")
+
+
+def save_summary_stage1(handoff: dict, output_dir: Path):
+    """Write a human-readable output.md for stage 1."""
+    topics = handoff.get("research_topics", [])
+    topics_md = "\n".join(f"{i}. {t}" for i, t in enumerate(topics, 1))
+    constraints = handoff.get("constraints_noted", "None")
+
+    md = f"# Stage 1 — Problem Intake\n\n"
+    md += f"## Business Question\n{handoff.get('user_query', 'N/A')}\n\n"
+    md += f"## Problem Framing\n{handoff.get('problem_framing', 'N/A')}\n\n"
+    if constraints and constraints != "None":
+        md += f"**Constraints:** {constraints}\n\n"
+    md += f"## Research Topics\n{topics_md}\n"
+
+    path = output_dir / "output.md"
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(md)
+    print(f"  Output saved: {path}")
+
+
+def save_summary_stage2(handoff: dict, output_dir: Path):
+    """Write a human-readable output.md for stage 2."""
+    approved = handoff.get("approved_topics", [])
+
+    md = "# Stage 2 — Research & Debate\n"
+
+    for i, topic in enumerate(approved, 1):
+        rounds = topic.get("debate_rounds", "?")
+        converged = topic.get("debate_converged", "?")
+        status = "converged" if converged else "not converged"
+
+        md += f"\n---\n\n## Topic {i}: {topic.get('topic', 'N/A')}\n"
+        md += f"**Debate:** {rounds} rounds, {status}\n"
+
+        md += f"\n### Summary\n{topic.get('summary', 'N/A')}\n"
+        md += f"\n### Proposal\n{topic.get('proposal', 'N/A')}\n"
+        md += f"\n### Key Recommendation\n{topic.get('key_recommendation', 'N/A')}\n"
+
+        findings = topic.get("findings", [])
+        if findings:
+            md += f"\n### Findings\n"
+            for f in findings:
+                if isinstance(f, dict):
+                    conf = f.get("confidence", "?")
+                    claim = f.get("claim", "")
+                    sources = f.get("sources", [])
+                    source_str = ""
+                    if sources:
+                        src = sources[0]
+                        source_str = f" ({src.get('title', '')} — {src.get('url', '')})"
+                    md += f"- [{conf}] {claim}{source_str}\n"
+                else:
+                    md += f"- {f}\n"
+
+        md += f"\n### Critic Assessment\n{topic.get('critic_assessment', 'N/A')}\n"
+
+        limitations = topic.get("limitations", [])
+        if limitations:
+            md += f"\n### Limitations\n"
+            for l in limitations:
+                md += f"- {l}\n"
+
+    path = output_dir / "output.md"
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(md)
+    print(f"  Output saved: {path}")
 
 
 def save_handoff(data: dict, output_dir: Path):

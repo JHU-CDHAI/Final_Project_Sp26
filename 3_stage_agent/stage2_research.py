@@ -22,20 +22,30 @@ from langgraph.graph import StateGraph, START, END, MessagesState
 from langgraph.types import interrupt
 
 from common import (
-    CFG, AGENTS, AUTO_APPROVE,
-    MAX_WEB_SEARCH_CT, MAX_DEBATE_ROUNDS, MAX_HUMAN_REVISION_ON_PROPOSAL,
-    MAX_CONTEXT_CHARS,
-    llm_researcher, llm_critic,
+    CFG, AUTO_APPROVE, MAX_CONTEXT_CHARS, make_llm,
     TopicProposalOutput, CriticOutput,
     _truncate, _build_debate_context,
     web_search,
     set_output_dir, _append_log, _topic_log_filename, _record, save_timings,
-    save_handoff, save_meta, load_handoff,
+    save_handoff, save_meta, save_summary_stage2, load_handoff,
     RESEARCH_PROPOSE_PROMPT, TOPIC_CRITIC_PROMPT,
 )
 
+# ── Stage config ──
+_STAGE_CFG = CFG["stage2_research"]
+_MODEL_RESEARCHER = _STAGE_CFG["model_researcher"]
+_MODEL_CRITIC = _STAGE_CFG["model_critic"]
+MAX_WEB_SEARCH_CT = _STAGE_CFG["max_web_search_ct"]
+MAX_DEBATE_ROUNDS = _STAGE_CFG["max_debate_rounds"]
+MAX_HUMAN_REVISION_ON_PROPOSAL = _STAGE_CFG["max_human_revision_on_proposal"]
+
+llm_researcher = make_llm(_MODEL_RESEARCHER)
+llm_critic = make_llm(_MODEL_CRITIC)
+
 print("=" * 80)
 print("STAGE 2 — Research & Debate")
+print(f"  Researcher: {_MODEL_RESEARCHER}")
+print(f"  Critic:     {_MODEL_CRITIC}")
 print("=" * 80)
 
 # ============================================================================
@@ -588,12 +598,15 @@ if __name__ == "__main__":
         # New from stage 2
         "approved_topics": result.get("approved_topics", []),
         "config": {
-            "agents": AGENTS,
+            "model_intake": handoff.get("config", {}).get("model_intake", "?"),
+            "model_researcher": _MODEL_RESEARCHER,
+            "model_critic": _MODEL_CRITIC,
             "input_query": handoff.get("config", {}).get("input_query", ""),
             "stage1_dir": str(args.input),
         },
     }
     save_handoff(handoff_out, output_dir)
+    save_summary_stage2(handoff_out, output_dir)
     save_timings()
 
     # ── Meta ──
@@ -606,8 +619,8 @@ if __name__ == "__main__":
         f"Elapsed:          {elapsed:.1f}s",
         f"",
         f"Models:",
-        f"  researcher    {AGENTS['researcher']['model']}",
-        f"  critic        {AGENTS['critic']['model']}",
+        f"  researcher    {_MODEL_RESEARCHER}",
+        f"  critic        {_MODEL_CRITIC}",
         f"",
         f"Settings:",
         f"  Max web search results:     {MAX_WEB_SEARCH_CT}",
