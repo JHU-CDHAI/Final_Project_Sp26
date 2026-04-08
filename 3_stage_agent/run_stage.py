@@ -88,7 +88,7 @@ def load_stage1(config_ui, repo_dir: str):
     config_dict = config_ui.get_config_stage1()
     _write_config(config_dict, repo_dir)
     _ensure_path(repo_dir)
-
+    print(sys.modules["stage1_intake"])
     if "stage1_intake" in sys.modules:
         mod = importlib.reload(sys.modules["stage1_intake"])
     else:
