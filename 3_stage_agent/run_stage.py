@@ -31,6 +31,12 @@ def _ensure_path(repo_dir: str):
         sys.path.insert(0, agent_dir)
 
 
+def _reload_common():
+    """Reload common.py so it picks up the freshly written config.yaml."""
+    import common
+    return importlib.reload(common)
+
+
 def _run_graph(agent, lc_config, initial_state, output_dir):
     """Shared interrupt loop for all stages."""
     report_export.start_log(output_dir)
@@ -86,9 +92,9 @@ def _copy_to_drive(output_dir: Path, stage_subdir: str):
 def load_stage1(config_ui, repo_dir: str):
     """Snapshot stage 1 widgets, write config, import module."""
     config_dict = config_ui.get_config_stage1()
-    print(config_dict)
     _write_config(config_dict, repo_dir)
     _ensure_path(repo_dir)
+    _reload_common()
 
     if "stage1_intake" in sys.modules:
         mod = importlib.reload(sys.modules["stage1_intake"])
@@ -174,6 +180,7 @@ def load_stage2(config_ui, repo_dir: str):
     config_dict = config_ui.get_config_stage2()
     _write_config(config_dict, repo_dir)
     _ensure_path(repo_dir)
+    _reload_common()
 
     if "stage2_research" in sys.modules:
         mod = importlib.reload(sys.modules["stage2_research"])
@@ -296,6 +303,7 @@ def load_stage3(config_ui, repo_dir: str):
     config_dict = config_ui.get_config_stage3()
     _write_config(config_dict, repo_dir)
     _ensure_path(repo_dir)
+    _reload_common()
 
     if "stage3_synthesis" in sys.modules:
         mod = importlib.reload(sys.modules["stage3_synthesis"])
