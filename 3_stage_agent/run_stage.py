@@ -89,10 +89,9 @@ def load_stage1(config_ui, repo_dir: str):
     _write_config(config_dict, repo_dir)
     _ensure_path(repo_dir)
 
-    try:
-        import stage1_intake
-        mod = importlib.reload(stage1_intake)
-    except Exception:
+    if "stage1_intake" in sys.modules:
+        mod = importlib.reload(sys.modules["stage1_intake"])
+    else:
         import stage1_intake as mod
 
     return mod, config_dict
@@ -181,10 +180,9 @@ def load_stage2(config_ui, repo_dir: str):
     _write_config(config_dict, repo_dir)
     _ensure_path(repo_dir)
 
-    try:
-        import stage2_research
-        mod = importlib.reload(stage2_research)
-    except Exception:
+    if "stage2_research" in sys.modules:
+        mod = importlib.reload(sys.modules["stage2_research"])
+    else:
         import stage2_research as mod
 
     return mod, config_dict
@@ -310,10 +308,9 @@ def load_stage3(config_ui, repo_dir: str):
     _write_config(config_dict, repo_dir)
     _ensure_path(repo_dir)
 
-    try:
-        import stage3_synthesis
-        mod = importlib.reload(stage3_synthesis)
-    except Exception:
+    if "stage3_synthesis" in sys.modules:
+        mod = importlib.reload(sys.modules["stage3_synthesis"])
+    else:
         import stage3_synthesis as mod
 
     return mod, config_dict
