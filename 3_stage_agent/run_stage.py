@@ -161,12 +161,6 @@ def run_stage1(mod, config_dict: dict):
     display(Markdown("## Stage 1 Complete"))
     print(f"Elapsed: {elapsed:.0f}s")
     print(f"Local:   {output_dir.resolve()}")
-    if drive_dest:
-        display(Markdown(
-            f"**Next step:** Open the **Stage 2** notebook and paste this path:\n\n"
-            f"`{drive_dest}`"
-        ))
-
     return result
 
 
@@ -289,12 +283,6 @@ def run_stage2(mod, config_dict: dict, handoff_path: str = ""):
     display(Markdown("## Stage 2 Complete"))
     print(f"Elapsed: {elapsed:.0f}s")
     print(f"Local:   {output_dir.resolve()}")
-    if drive_dest:
-        display(Markdown(
-            f"**Next step:** Open the **Stage 3** notebook and paste this path:\n\n"
-            f"`{drive_dest}`"
-        ))
-
     return result
 
 
