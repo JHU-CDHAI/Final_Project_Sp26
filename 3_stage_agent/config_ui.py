@@ -122,7 +122,7 @@ _s2_input_form = widgets.VBox([
     ),
     _s2_context,
     widgets.HTML(
-        '<b style="font-size:18px;display:block;margin-top:24px;">Research Topics</b>'
+        '<b style="font-size:18px;display:block;margin-top:48px;">Research Topics</b>'
         '<p style="color:#555;margin:2px 0 6px;">Copy the <b>Research Topics</b> '
         'list from your Stage 1 output and paste it below.</p>'
         '<p style="color:#d32f2f;font-weight:600;font-size:16px;margin:2px 0 6px;">'
