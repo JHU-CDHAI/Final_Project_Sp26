@@ -190,26 +190,54 @@ def load_stage2(config_ui, repo_dir: str):
     return mod, config_dict
 
 
-def run_stage2(mod, config_dict: dict, handoff_path: str = ""):
+def _parse_topics(text: str) -> list[str]:
+    """Parse a research topics text block into a list of topic strings.
+
+    Handles numbered lines like '1. Topic' or plain lines, one per line.
+    """
+    import re
+    topics = []
+    for line in text.strip().splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        # Strip leading number + dot/paren, e.g. "1. ", "2) "
+        line = re.sub(r"^\d+[\.\)]\s*", "", line)
+        if line:
+            topics.append(line)
+    return topics
+
+
+def run_stage2(mod, config_dict: dict, *,
+               research_context: str = "", research_topics_text: str = ""):
     """Run stage 2 and save outputs.
 
     Parameters
     ----------
-    handoff_path : str
-        Path to the uploaded handoff.json file from Stage 1.
+    research_context : str
+        Free-text research context from Stage 1 (problem framing, constraints, etc.).
+    research_topics_text : str
+        Research topics from Stage 1, one per line (numbered or plain).
     """
-    import json as _json
     from common import (
         save_handoff, save_summary_stage2,
         save_meta, save_timings,
     )
 
-    if not handoff_path:
-        raise ValueError("Please upload your Stage 1 handoff.json file.")
-    with open(handoff_path, "r", encoding="utf-8") as f:
-        handoff_in = _json.load(f)
-    print(f"Loaded handoff from: {handoff_path}")
-    print(f"Topics: {handoff_in['research_topics']}")
+    if not research_context.strip():
+        raise ValueError("Please paste your Stage 1 research context.")
+    if not research_topics_text.strip():
+        raise ValueError("Please paste your Stage 1 research topics.")
+
+    research_topics = _parse_topics(research_topics_text)
+    print(f"Research context: {len(research_context.strip())} chars")
+    print(f"Topics ({len(research_topics)}):")
+    for i, t in enumerate(research_topics, 1):
+        print(f"  {i}. {t}")
+
+    # Build the research brief that gets passed to LLM prompts
+    topics_text = "\n".join(f"  {i}. {t}" for i, t in enumerate(research_topics, 1))
+    research_brief = f"{research_context.strip()}\n\n## Research Topics\n{topics_text}"
 
     agent = mod.build_graph(checkpointer=MemorySaver())
     lc_config = {"configurable": {"thread_id": "colab-stage2-1"}}
@@ -221,18 +249,8 @@ def run_stage2(mod, config_dict: dict, handoff_path: str = ""):
     print(f"Output dir: {output_dir.resolve()}\n")
 
     initial_state = {
-        "user_query": handoff_in.get("user_query", ""),
-        "country_or_market": handoff_in.get("country_or_market", ""),
-        "product_idea": handoff_in.get("product_idea", ""),
-        "target_customer": handoff_in.get("target_customer", ""),
-        "budget_range": handoff_in.get("budget_range", ""),
-        "time_horizon": handoff_in.get("time_horizon", ""),
-        "risk_tolerance": handoff_in.get("risk_tolerance", ""),
-        "constraints": handoff_in.get("constraints", ""),
-        "problem_framing": handoff_in.get("problem_framing", ""),
-        "constraints_noted": handoff_in.get("constraints_noted", ""),
-        "research_topics": handoff_in["research_topics"],
-        "research_brief": handoff_in["research_brief"],
+        "research_topics": research_topics,
+        "research_brief": research_brief,
         "current_topic_idx": 0,
         "current_debate_round": 0,
         "approved_topics": [],
@@ -242,35 +260,20 @@ def run_stage2(mod, config_dict: dict, handoff_path: str = ""):
 
     _s2_cfg = config_dict["stage2_research"]
     handoff_out = {
-        "user_query": handoff_in.get("user_query", ""),
-        "country_or_market": handoff_in.get("country_or_market", ""),
-        "product_idea": handoff_in.get("product_idea", ""),
-        "target_customer": handoff_in.get("target_customer", ""),
-        "budget_range": handoff_in.get("budget_range", ""),
-        "time_horizon": handoff_in.get("time_horizon", ""),
-        "risk_tolerance": handoff_in.get("risk_tolerance", ""),
-        "constraints": handoff_in.get("constraints", ""),
-        "problem_framing": handoff_in.get("problem_framing", ""),
-        "constraints_noted": handoff_in.get("constraints_noted", ""),
-        "research_topics": handoff_in["research_topics"],
-        "research_brief": handoff_in["research_brief"],
+        "research_topics": research_topics,
+        "research_brief": research_brief,
         "approved_topics": result.get("approved_topics", []),
         "config": {
-            "model_intake": handoff_in.get("config", {}).get("model_intake", "?"),
             "model_researcher": _s2_cfg["model_researcher"],
             "model_critic": _s2_cfg["model_critic"],
-            "input_query": handoff_in.get("config", {}).get("input_query", ""),
-            "stage1_dir": str(handoff_path),
         },
     }
     save_handoff(handoff_out, output_dir)
     save_summary_stage2(handoff_out, output_dir)
 
-    approved = result.get("approved_topics", [])
     save_meta([
         f"Stage:            2 — Research & Debate",
         f"Timestamp:        {datetime.now().isoformat()}",
-        f"Input (Stage 1):  {handoff_path}",
         f"Elapsed:          {elapsed:.1f}s",
         f"",
         f"Models:",
@@ -341,16 +344,6 @@ def run_stage3(mod, config_dict: dict, handoff_path: str = ""):
     print(f"Output dir: {output_dir.resolve()}\n")
 
     initial_state = {
-        "user_query": handoff_in.get("user_query", ""),
-        "country_or_market": handoff_in.get("country_or_market", ""),
-        "product_idea": handoff_in.get("product_idea", ""),
-        "target_customer": handoff_in.get("target_customer", ""),
-        "budget_range": handoff_in.get("budget_range", ""),
-        "time_horizon": handoff_in.get("time_horizon", ""),
-        "risk_tolerance": handoff_in.get("risk_tolerance", ""),
-        "constraints": handoff_in.get("constraints", ""),
-        "problem_framing": handoff_in.get("problem_framing", ""),
-        "constraints_noted": handoff_in.get("constraints_noted", ""),
         "research_topics": handoff_in.get("research_topics", []),
         "research_brief": handoff_in.get("research_brief", ""),
         "approved_topics": handoff_in["approved_topics"],
@@ -362,9 +355,8 @@ def run_stage3(mod, config_dict: dict, handoff_path: str = ""):
     _s3_cfg = config_dict["stage3_synthesis"]
     stage_config = handoff_in.get("config", {})
     export_config = {
-        "input_query": stage_config.get("input_query", handoff_in.get("user_query", "")),
+        "input_query": handoff_in.get("research_brief", "")[:200],
         "agents": {
-            "intake":      {"model": stage_config.get("model_intake", "?")},
             "researcher":  {"model": stage_config.get("model_researcher", "?")},
             "critic":      {"model": stage_config.get("model_critic", "?")},
             "synthesizer": {"model": _s3_cfg["model"]},

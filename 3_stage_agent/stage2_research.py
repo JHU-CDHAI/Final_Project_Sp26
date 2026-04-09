@@ -544,16 +544,6 @@ if __name__ == "__main__":
 
     # Seed state from handoff
     initial_state = {
-        "user_query": handoff.get("user_query", ""),
-        "country_or_market": handoff.get("country_or_market", ""),
-        "product_idea": handoff.get("product_idea", ""),
-        "target_customer": handoff.get("target_customer", ""),
-        "budget_range": handoff.get("budget_range", ""),
-        "time_horizon": handoff.get("time_horizon", ""),
-        "risk_tolerance": handoff.get("risk_tolerance", ""),
-        "constraints": handoff.get("constraints", ""),
-        "problem_framing": handoff.get("problem_framing", ""),
-        "constraints_noted": handoff.get("constraints_noted", ""),
         "research_topics": handoff["research_topics"],
         "research_brief": handoff["research_brief"],
         "current_topic_idx": 0,
@@ -582,27 +572,12 @@ if __name__ == "__main__":
 
     # ── Save handoff for stage 3 ──
     handoff_out = {
-        # Pass through context from stage 1
-        "user_query": handoff.get("user_query", ""),
-        "country_or_market": handoff.get("country_or_market", ""),
-        "product_idea": handoff.get("product_idea", ""),
-        "target_customer": handoff.get("target_customer", ""),
-        "budget_range": handoff.get("budget_range", ""),
-        "time_horizon": handoff.get("time_horizon", ""),
-        "risk_tolerance": handoff.get("risk_tolerance", ""),
-        "constraints": handoff.get("constraints", ""),
-        "problem_framing": handoff.get("problem_framing", ""),
-        "constraints_noted": handoff.get("constraints_noted", ""),
         "research_topics": handoff["research_topics"],
         "research_brief": handoff["research_brief"],
-        # New from stage 2
         "approved_topics": result.get("approved_topics", []),
         "config": {
-            "model_intake": handoff.get("config", {}).get("model_intake", "?"),
             "model_researcher": _MODEL_RESEARCHER,
             "model_critic": _MODEL_CRITIC,
-            "input_query": handoff.get("config", {}).get("input_query", ""),
-            "stage1_dir": str(args.input),
         },
     }
     save_handoff(handoff_out, output_dir)

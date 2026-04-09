@@ -162,10 +162,9 @@ def action_plan_90d(state: dict) -> dict:
             f"""Recommendation report:
 {state.get('recommendation', 'N/A')}
 
-Market: {state.get('country_or_market', 'N/A')}
-Product: {state.get('product_idea', 'N/A')}
-Budget: {state.get('budget_range', 'N/A')}
-Timeline: {state.get('time_horizon', 'N/A')}
+Research context:
+{state.get('research_brief', 'N/A')}
+
 Research topics covered: {', '.join(topic_names)}
 
 Create a 90-day action plan based on the recommendation report above."""})
@@ -342,16 +341,6 @@ if __name__ == "__main__":
     config = {"configurable": {"thread_id": "stage3-run-1"}}
 
     initial_state = {
-        "user_query": handoff.get("user_query", ""),
-        "country_or_market": handoff.get("country_or_market", ""),
-        "product_idea": handoff.get("product_idea", ""),
-        "target_customer": handoff.get("target_customer", ""),
-        "budget_range": handoff.get("budget_range", ""),
-        "time_horizon": handoff.get("time_horizon", ""),
-        "risk_tolerance": handoff.get("risk_tolerance", ""),
-        "constraints": handoff.get("constraints", ""),
-        "problem_framing": handoff.get("problem_framing", ""),
-        "constraints_noted": handoff.get("constraints_noted", ""),
         "research_topics": handoff.get("research_topics", []),
         "research_brief": handoff.get("research_brief", ""),
         "approved_topics": handoff["approved_topics"],
@@ -380,9 +369,8 @@ if __name__ == "__main__":
     # Build a config dict compatible with report_export.save_all
     stage_config = handoff.get("config", {})
     export_config = {
-        "input_query": stage_config.get("input_query", handoff.get("user_query", "")),
+        "input_query": handoff.get("research_brief", "")[:200],
         "agents": {
-            "intake":      {"model": stage_config.get("model_intake", "?")},
             "researcher":  {"model": stage_config.get("model_researcher", "?")},
             "critic":      {"model": stage_config.get("model_critic", "?")},
             "synthesizer": {"model": _MODEL},
