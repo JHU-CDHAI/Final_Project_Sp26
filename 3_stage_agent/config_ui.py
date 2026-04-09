@@ -59,7 +59,7 @@ _s1_form = widgets.VBox([
     _labeled("Max topic revisions:", _s1_max_topics_rev,
              "How many times you can revise the research topic list (Gate 2)"),
     widgets.HTML(
-        '<p style="color:#d32f2f;font-weight:600;font-size:14px;margin:12px 0 0;">'
+        '<p style="color:#d32f2f;font-weight:600;font-size:18px;margin:12px 0 0;">'
         'Warning: Once your settings are finalized, proceed directly to the Run step. '
         'Re-running this cell will reset everything to the default configuration.</p>'
     ),
@@ -124,16 +124,13 @@ _s2_input_form = widgets.VBox([
     widgets.HTML(
         '<b style="font-size:14px;margin-top:12px;">Research Topics</b>'
         '<p style="color:#555;margin:2px 0 6px;">Copy the <b>Research Topics</b> '
-        'list from your Stage 1 output and paste it below. '
-        '<b>Put exactly one topic per line.</b>'
-        '<br><i>Example:</i></p>'
-        '<pre style="color:#888;margin:2px 0 6px;font-size:12px;">'
-        '1. Market entry strategies for beverage industry in Sweden\n'
-        '2. Consumer preferences and trends in the Swedish beverage market</pre>'
+        'list from your Stage 1 output and paste it below.</p>'
+        '<p style="color:#d32f2f;font-weight:600;font-size:16px;margin:2px 0 6px;">'
+        'Put exactly one topic per line.</p>'
     ),
     _s2_topics,
     widgets.HTML(
-        '<p style="color:#d32f2f;font-weight:600;font-size:14px;margin:12px 0 0;">'
+        '<p style="color:#d32f2f;font-weight:600;font-size:18px;margin:12px 0 0;">'
         'Warning: Once you have pasted your Stage 1 output, proceed to the next steps. '
         'Re-running this cell will clear both boxes.</p>'
     ),
@@ -176,7 +173,7 @@ _s2_form = widgets.VBox([
     _labeled("Max proposal revisions:", _s2_max_rev_proposal,
              "How many times you can send a topic back for revision during research &amp; debate, for each topic (Gate 3)"),
     widgets.HTML(
-        '<p style="color:#d32f2f;font-weight:600;font-size:14px;margin:12px 0 0;">'
+        '<p style="color:#d32f2f;font-weight:600;font-size:18px;margin:12px 0 0;">'
         'Warning: Once your settings are finalized, proceed directly to the Run step. '
         'Re-running this cell will reset everything to the default configuration.</p>'
     ),
@@ -233,7 +230,7 @@ _s3_form = widgets.VBox([
     _labeled("Max plan revisions:", _s3_max_rev_plan,
              "How many times you can revise the final action plan (Gate 4)"),
     widgets.HTML(
-        '<p style="color:#d32f2f;font-weight:600;font-size:14px;margin:12px 0 0;">'
+        '<p style="color:#d32f2f;font-weight:600;font-size:18px;margin:12px 0 0;">'
         'Warning: Once your settings are finalized, proceed directly to the Run step. '
         'Re-running this cell will reset everything to the default configuration.</p>'
     ),
