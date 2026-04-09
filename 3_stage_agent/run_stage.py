@@ -190,22 +190,17 @@ def load_stage2(config_ui, repo_dir: str):
     return mod, config_dict
 
 
-def _parse_topics(text: str) -> list[str]:
-    """Parse a research topics text block into a list of topic strings.
+def _parse_topics(text: str, model_id: str) -> list[str]:
+    """Use an LLM to extract research topics from free-form text."""
+    from common import make_llm, TopicsOutput
 
-    Handles numbered lines like '1. Topic' or plain lines, one per line.
-    """
-    import re
-    topics = []
-    for line in text.strip().splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        # Strip leading number + dot/paren, e.g. "1. ", "2) "
-        line = re.sub(r"^\d+[\.\)]\s*", "", line)
-        if line:
-            topics.append(line)
-    return topics
+    llm = make_llm(model_id)
+    structured = llm.with_structured_output(TopicsOutput)
+    result = structured.invoke(
+        f"Extract the research topics from the text below. "
+        f"Return each topic as a short, clear phrase.\n\n{text}"
+    )
+    return result.topics
 
 
 def run_stage2(mod, config_dict: dict, *,
@@ -229,7 +224,8 @@ def run_stage2(mod, config_dict: dict, *,
     if not research_topics_text.strip():
         raise ValueError("Please paste your Stage 1 research topics.")
 
-    research_topics = _parse_topics(research_topics_text)
+    _s2_cfg = config_dict["stage2_research"]
+    research_topics = _parse_topics(research_topics_text, _s2_cfg["model_researcher"])
     print(f"Research context: {len(research_context.strip())} chars")
     print(f"Topics ({len(research_topics)}):")
     for i, t in enumerate(research_topics, 1):
@@ -258,7 +254,6 @@ def run_stage2(mod, config_dict: dict, *,
 
     result, elapsed = _run_graph(agent, lc_config, initial_state, output_dir)
 
-    _s2_cfg = config_dict["stage2_research"]
     handoff_out = {
         "research_topics": research_topics,
         "research_brief": research_brief,

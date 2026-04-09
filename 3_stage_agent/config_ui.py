@@ -95,6 +95,45 @@ def get_config_stage1() -> dict:
 # STAGE 2 — Research & Debate
 # ============================================================================
 
+# -- Stage 1 output input (shown in step 2 of the Stage 2 notebook) --
+_s2_context = widgets.Textarea(
+    value="",
+    placeholder="Paste your problem framing and constraints here...",
+    layout=widgets.Layout(width="95%", height="160px"),
+)
+_s2_topics = widgets.Textarea(
+    value="",
+    placeholder="1. First research topic\n2. Second research topic",
+    layout=widgets.Layout(width="95%", height="100px"),
+)
+
+_s2_input_form = widgets.VBox([
+    widgets.HTML(
+        '<b style="font-size:14px;">Research Context</b>'
+        '<p style="color:#555;margin:2px 0 6px;">Paste the <b>Problem Framing</b> '
+        'and <b>Constraints</b> from your Stage 1 output.</p>'
+    ),
+    _s2_context,
+    widgets.HTML(
+        '<b style="font-size:14px;margin-top:12px;">Research Topics</b>'
+        '<p style="color:#555;margin:2px 0 6px;">Paste the numbered topic list '
+        'from your Stage 1 output (one topic per line).</p>'
+    ),
+    _s2_topics,
+])
+
+
+def show_stage2_input():
+    display(_s2_input_form)
+
+
+def get_stage1_output() -> dict:
+    return {
+        "research_context": _s2_context.value,
+        "research_topics_text": _s2_topics.value,
+    }
+
+
 _s2_model_researcher = widgets.Dropdown(options=MODEL_OPTIONS, value="openai/gpt-5.2", layout=_widget_layout)
 _s2_model_critic = widgets.Dropdown(options=MODEL_OPTIONS, value="openai/gpt-5.2", layout=_widget_layout)
 _s2_max_web = widgets.BoundedIntText(value=10, min=1, max=30, layout=_slider_layout)
