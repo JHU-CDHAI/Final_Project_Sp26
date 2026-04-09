@@ -110,14 +110,21 @@ _s2_topics = widgets.Textarea(
 _s2_input_form = widgets.VBox([
     widgets.HTML(
         '<b style="font-size:14px;">Research Context</b>'
-        '<p style="color:#555;margin:2px 0 6px;">Paste the <b>Problem Framing</b> '
-        'and <b>Constraints</b> from your Stage 1 output.</p>'
+        '<p style="color:#555;margin:2px 0 6px;">Copy the <b>Problem Framing</b> '
+        'and <b>Constraints</b> sections from your Stage 1 output and paste them '
+        'into the box below. This gives the research agents background on your '
+        'business question.</p>'
     ),
     _s2_context,
     widgets.HTML(
         '<b style="font-size:14px;margin-top:12px;">Research Topics</b>'
-        '<p style="color:#555;margin:2px 0 6px;">Paste the numbered topic list '
-        'from your Stage 1 output (one topic per line).</p>'
+        '<p style="color:#555;margin:2px 0 6px;">Copy the <b>Research Topics</b> '
+        'list from your Stage 1 output and paste it below. '
+        '<b>Put exactly one topic per line.</b>'
+        '<br><i>Example:</i></p>'
+        '<pre style="color:#888;margin:2px 0 6px;font-size:12px;">'
+        '1. Market entry strategies for beverage industry in Sweden\n'
+        '2. Consumer preferences and trends in the Swedish beverage market</pre>'
     ),
     _s2_topics,
 ])

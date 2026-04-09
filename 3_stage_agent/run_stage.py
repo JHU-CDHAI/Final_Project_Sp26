@@ -190,17 +190,38 @@ def load_stage2(config_ui, repo_dir: str):
     return mod, config_dict
 
 
-def _parse_topics(text: str, model_id: str) -> list[str]:
-    """Use an LLM to extract research topics from free-form text."""
-    from common import make_llm, TopicsOutput
+def _parse_topics(text: str) -> list[str]:
+    """Parse a research topics text block into a list of topic strings.
 
-    llm = make_llm(model_id)
-    structured = llm.with_structured_output(TopicsOutput)
-    result = structured.invoke(
-        f"Extract the research topics from the text below. "
-        f"Return each topic as a short, clear phrase.\n\n{text}"
-    )
-    return result.topics
+    Handles common paste formats:
+      - Numbered:  "1. Topic", "1) Topic", "(1) Topic", "1: Topic"
+      - Bulleted:  "- Topic", "* Topic", "• Topic"
+      - Markdown headers/bold: "## Research Topics", "**Topic**"
+      - Separator lines: "---", "==="
+      - Plain lines (one topic per line)
+    """
+    import re
+    topics = []
+    for line in text.strip().splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        # Skip markdown headers (e.g. "## Research Topics")
+        if re.match(r"^#{1,6}\s", line):
+            continue
+        # Skip separator lines (---, ===, ***)
+        if re.match(r"^[-=\*_]{3,}\s*$", line):
+            continue
+        # Strip leading numbering: "1. ", "1) ", "(1) ", "1: "
+        line = re.sub(r"^\(?\d+[\.\)\:]\)?\s*", "", line)
+        # Strip leading bullets: "- ", "* ", "• "
+        line = re.sub(r"^[-\*•]\s+", "", line)
+        # Strip surrounding markdown bold: **Topic** -> Topic
+        line = re.sub(r"^\*\*(.+?)\*\*$", r"\1", line)
+        line = line.strip()
+        if line:
+            topics.append(line)
+    return topics
 
 
 def run_stage2(mod, config_dict: dict, *,
@@ -225,7 +246,7 @@ def run_stage2(mod, config_dict: dict, *,
         raise ValueError("Please paste your Stage 1 research topics.")
 
     _s2_cfg = config_dict["stage2_research"]
-    research_topics = _parse_topics(research_topics_text, _s2_cfg["model_researcher"])
+    research_topics = _parse_topics(research_topics_text)
     print(f"Research context: {len(research_context.strip())} chars")
     print(f"Topics ({len(research_topics)}):")
     for i, t in enumerate(research_topics, 1):
