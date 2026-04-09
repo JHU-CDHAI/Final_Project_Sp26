@@ -194,30 +194,49 @@ def _parse_topics(text: str) -> list[str]:
     """Parse a research topics text block into a list of topic strings.
 
     Handles common paste formats:
-      - Numbered:  "1. Topic", "1) Topic", "(1) Topic", "1: Topic"
-      - Bulleted:  "- Topic", "* Topic", "• Topic"
-      - Markdown headers/bold: "## Research Topics", "**Topic**"
-      - Separator lines: "---", "==="
+      - Numbered:  "1. ", "1) ", "(1) ", "1: ", "1 - ", "1 . "
+      - Lettered:  "a. ", "a) ", "A. ", "A) "
+      - Roman:     "i. ", "ii) ", "III. "
+      - Bulleted:  "- ", "* ", "• ", "◦ ", "▪ ", "► ", "→ ", "– ", "— "
+      - Markdown:  "## heading", "**bold**", "> blockquote"
+      - Separators: "---", "===", "***", "___"
+      - Labels:    "Research Topics:", "Topics:" (skipped)
       - Plain lines (one topic per line)
     """
     import re
     topics = []
     for line in text.strip().splitlines():
-        line = line.strip()
+        # Normalize whitespace (tabs, non-breaking spaces, etc.)
+        line = re.sub(r"[\t\u00a0]+", " ", line).strip()
         if not line:
             continue
-        # Skip markdown headers (e.g. "## Research Topics")
+        # Skip markdown headers
         if re.match(r"^#{1,6}\s", line):
             continue
-        # Skip separator lines (---, ===, ***)
+        # Skip blockquotes
+        if re.match(r"^>\s", line):
+            continue
+        # Skip separator lines (---, ===, ***, ___)
         if re.match(r"^[-=\*_]{3,}\s*$", line):
             continue
-        # Strip leading numbering: "1. ", "1) ", "(1) ", "1: "
-        line = re.sub(r"^\(?\d+[\.\)\:]\)?\s*", "", line)
-        # Strip leading bullets: "- ", "* ", "• "
-        line = re.sub(r"^[-\*•]\s+", "", line)
-        # Strip surrounding markdown bold: **Topic** -> Topic
-        line = re.sub(r"^\*\*(.+?)\*\*$", r"\1", line)
+        # Skip label-only lines like "Research Topics:" or "Topics:"
+        if re.match(r"^(research\s+)?topics?\s*:?\s*$", line, re.IGNORECASE):
+            continue
+        # Skip common instruction/boilerplate text
+        if re.match(r"^(copy|paste|enter|put|the following|below|above)\b", line, re.IGNORECASE):
+            continue
+        # Strip leading numbering: "1. ", "1) ", "(1) ", "1: ", "1 - "
+        line = re.sub(r"^\(?\d+[\.\)\:\-]\)?\s*", "", line)
+        # Strip leading letter numbering: "a. ", "a) ", "A. ", "A) "
+        line = re.sub(r"^\(?[a-zA-Z][\.\)]\s*", "", line)
+        # Strip leading roman numerals: "i. ", "ii) ", "III. "
+        line = re.sub(r"^\(?[ivxIVX]+[\.\)]\s*", "", line)
+        # Strip leading bullets (common unicode + ascii)
+        line = re.sub(r"^[-\*•◦▪►→–—]\s*", "", line)
+        # Strip surrounding markdown bold/italic
+        line = re.sub(r"^\*{1,2}(.+?)\*{1,2}$", r"\1", line)
+        # Strip surrounding quotes
+        line = re.sub(r'^["\u201c\u201d\']+(.+?)["\u201c\u201d\']+$', r"\1", line)
         line = line.strip()
         if line:
             topics.append(line)
