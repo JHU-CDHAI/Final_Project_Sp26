@@ -58,6 +58,11 @@ _s1_form = widgets.VBox([
              "Number of topics the agent will come up with to research on"),
     _labeled("Max topic revisions:", _s1_max_topics_rev,
              "How many times you can revise the research topic list (Gate 2)"),
+    widgets.HTML(
+        '<p style="color:#d32f2f;font-weight:600;font-size:14px;margin:12px 0 0;">'
+        'Warning: Once your settings are finalized, proceed directly to the Run step. '
+        'Re-running this cell will reset everything to the default configuration.</p>'
+    ),
 ])
 
 
@@ -127,6 +132,11 @@ _s2_input_form = widgets.VBox([
         '2. Consumer preferences and trends in the Swedish beverage market</pre>'
     ),
     _s2_topics,
+    widgets.HTML(
+        '<p style="color:#d32f2f;font-weight:600;font-size:14px;margin:12px 0 0;">'
+        'Warning: Once you have pasted your Stage 1 output, proceed to the next steps. '
+        'Re-running this cell will clear both boxes.</p>'
+    ),
 ])
 
 
@@ -165,6 +175,11 @@ _s2_form = widgets.VBox([
              "Researcher vs Critic rounds per topic before human review"),
     _labeled("Max proposal revisions:", _s2_max_rev_proposal,
              "How many times you can send a topic back for revision during research &amp; debate, for each topic (Gate 3)"),
+    widgets.HTML(
+        '<p style="color:#d32f2f;font-weight:600;font-size:14px;margin:12px 0 0;">'
+        'Warning: Once your settings are finalized, proceed directly to the Run step. '
+        'Re-running this cell will reset everything to the default configuration.</p>'
+    ),
 ])
 
 
@@ -217,6 +232,11 @@ _s3_form = widgets.VBox([
     widgets.HTML("<h3>Settings</h3>"),
     _labeled("Max plan revisions:", _s3_max_rev_plan,
              "How many times you can revise the final action plan (Gate 4)"),
+    widgets.HTML(
+        '<p style="color:#d32f2f;font-weight:600;font-size:14px;margin:12px 0 0;">'
+        'Warning: Once your settings are finalized, proceed directly to the Run step. '
+        'Re-running this cell will reset everything to the default configuration.</p>'
+    ),
 ])
 
 
