@@ -147,11 +147,6 @@ def save_all(result: dict, config: dict, output_dir: Path, elapsed: float):
         _cover_para("━" * 30, size=10, color=ACCENT,
                      space_before=Pt(0), space_after=Pt(12))
 
-        # Business question
-        _cover_para(f"\u201c{config['input_query']}\u201d",
-                     size=14, color=DARK_GRAY, italic=True,
-                     space_after=Cm(1.5))
-
         # Date
         _cover_para(
             f"Generated: {datetime.now().strftime('%B %d, %Y')}",
