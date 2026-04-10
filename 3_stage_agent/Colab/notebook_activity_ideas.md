@@ -24,7 +24,7 @@ Ask students to run Stage 1 **twice** (or three times) using a different model e
 | **Interaction feel** | Student's own experience | Did the model ask too many clarifying questions? Too few? Did "press Enter to approve" feel earned? |
 
 **Suggested reflection prompt:**
-> Which model produced the most useful problem framing for your question? Did a more expensive model produce noticeably better research topics, or were the results comparable? What trade-offs would matter if you were choosing a model for a real consulting engagement?
+> Which model produced the most useful problem framing for your question? Were the results comparable? What trade-offs would matter if you were choosing a model for a real consulting engagement?
 
 ---
 
@@ -49,7 +49,7 @@ with **different model pairings** for Researcher vs. Critic. For example:
 | **Cross-model friction** | Student's own experience | Do mixed-model pairings produce more interesting debate than same-model? |
 
 **Suggested reflection prompt:**
-> Did using different models for the Researcher and Critic produce a more rigorous debate than using the same model for both? What patterns did you notice in how each model plays the "Critic" role -- does one model challenge assumptions more aggressively? How did the number of debate rounds affect output quality vs. cost?
+> Did using different models for the Researcher and Critic produce a more rigorous debate than using the same model for both? What patterns did you notice in how each model plays the "Critic" role -- does one model challenge assumptions more aggressively? 
 
 
 ---
@@ -64,7 +64,7 @@ Students run Stage 3 using at least **two different models** on the same Stage 2
 
 | Dimension | Where to find it | What to look for |
 |---|---|---|
-| **Report structure & clarity** | `output.md` / `.docx` | Is the executive summary actually useful? Is the 90-day plan concrete or hand-wavy? |
+| **Report structure & clarity** | `output.md` / `.docx` | Is the executive summary actually useful? Is the 90-day plan concrete? |
 | **Evidence integration** | `output.md` | Does the synthesizer connect findings back to the research? Are citations preserved? |
 | **Actionability of the plan** | `output.md` — 90-day action plan | Are milestones realistic? Are KPIs measurable? Would a real manager be able to act on this? |
 | **Cost & speed** | OpenRouter dashboard and logs | Total tokens and cost for synthesis |

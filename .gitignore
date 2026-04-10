@@ -23,7 +23,7 @@ agent/openrouter_tests/
 # MBA results (session outputs)
 agent/results/
 3_stage_agent/results/
-3_stage_agent/Colab/
+3_stage_agent/Colab/*.ipynb
 
 # MBA design files
 agent/Design/
