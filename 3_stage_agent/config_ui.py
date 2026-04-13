@@ -54,11 +54,11 @@ _s1_form = widgets.VBox([
     _labeled("Intake model:", _s1_model),
     widgets.HTML("<h3>Settings</h3>"),
     _labeled("Max clarify rounds:", _s1_max_clarify,
-             "How many times the agent can ask you clarifying questions (Gate 1)"),
+             "How many times the agent can ask you clarifying questions"),
     _labeled("Max research topics:", _s1_max_topics,
              "Number of topics the agent will come up with to research on"),
     _labeled("Max topic revisions:", _s1_max_topics_rev,
-             "How many times you can revise the research topic list (Gate 2)"),
+             "How many times you can revise the research topic list"),
     widgets.HTML(
         '<p style="color:#d32f2f;font-weight:600;font-size:18px;margin:12px 0 0;">'
         'Warning: Once your settings are finalized, proceed directly to the Run step. '
@@ -172,7 +172,7 @@ _s2_form = widgets.VBox([
     _labeled("Max debate rounds:", _s2_max_debate,
              "Researcher vs Critic rounds per topic before human review"),
     _labeled("Max proposal revisions:", _s2_max_rev_proposal,
-             "How many times you can send a topic back for revision during research &amp; debate, for each topic (Gate 3)"),
+             "How many times you can send a topic back for revision during research &amp; debate, for each topic"),
     widgets.HTML(
         '<p style="color:#d32f2f;font-weight:600;font-size:18px;margin:12px 0 0;">'
         'Warning: Once your settings are finalized, proceed directly to the Run step. '
@@ -234,7 +234,7 @@ _s3_form = widgets.VBox([
     _labeled("Synthesizer:", _s3_model),
     widgets.HTML("<h3>Settings</h3>"),
     _labeled("Max plan revisions:", _s3_max_rev_plan,
-             "How many times you can revise the final action plan (Gate 4)"),
+             "How many times you can revise the final action plan"),
     widgets.HTML(
         '<p style="color:#d32f2f;font-weight:600;font-size:18px;margin:12px 0 0;">'
         'Warning: Once your settings are finalized, proceed directly to the Run step. '
