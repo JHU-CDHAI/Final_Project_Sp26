@@ -213,7 +213,12 @@ def get_config_stage2() -> dict:
 # STAGE 3 — Synthesis & Action Plan
 # ============================================================================
 
-_s3_model = widgets.Dropdown(options=MODEL_OPTIONS, value="anthropic/claude-opus-4.6", layout=_widget_layout)
+_s3_model = widgets.Dropdown(
+    options=["anthropic/claude-opus-4.6"],
+    value="anthropic/claude-opus-4.6",
+    disabled=True,
+    layout=_widget_layout,
+)
 _s3_max_rev_plan = widgets.BoundedIntText(value=2, min=1, max=5, layout=_slider_layout)
 
 _s3_form = widgets.VBox([
