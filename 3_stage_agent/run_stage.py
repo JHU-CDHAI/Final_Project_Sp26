@@ -351,22 +351,32 @@ def load_stage3(config_ui, repo_dir: str):
     return mod, config_dict
 
 
-def run_stage3(mod, config_dict: dict, handoff_path: str = ""):
+def run_stage3(mod, config_dict: dict, handoff_path: str = "", handoff: dict | None = None):
     """Run stage 3 and save final reports.
 
     Parameters
     ----------
     handoff_path : str
-        Path to the uploaded handoff.json file from Stage 2.
+        Path to the uploaded handoff.json file from Stage 2. Used when running
+        Stage 3 standalone.
+    handoff : dict | None
+        In-memory Stage 2 result (the dict returned by ``run_stage2``). Used when
+        running Stages 2 and 3 back-to-back in the same notebook. Takes precedence
+        over ``handoff_path`` if both are provided.
     """
     import json as _json
     from common import save_meta, save_timings
 
-    if not handoff_path:
-        raise ValueError("Please upload your Stage 2 handoff.json file.")
-    with open(handoff_path, "r", encoding="utf-8") as f:
-        handoff_in = _json.load(f)
-    print(f"Loaded handoff from: {handoff_path}")
+    if handoff is not None:
+        handoff_in = handoff
+        handoff_source = "in-memory Stage 2 result"
+    elif handoff_path:
+        with open(handoff_path, "r", encoding="utf-8") as f:
+            handoff_in = _json.load(f)
+        handoff_source = handoff_path
+    else:
+        raise ValueError("Please provide a Stage 2 handoff (either handoff_path or handoff dict).")
+    print(f"Loaded handoff from: {handoff_source}")
     print(f"Approved topics: {len(handoff_in.get('approved_topics', []))}")
 
     agent = mod.build_graph(checkpointer=MemorySaver())
@@ -402,7 +412,7 @@ def run_stage3(mod, config_dict: dict, handoff_path: str = ""):
     save_meta([
         f"Stage:            3 — Synthesis & Action Plan",
         f"Timestamp:        {datetime.now().isoformat()}",
-        f"Input (Stage 2):  {handoff_path}",
+        f"Input (Stage 2):  {handoff_source}",
         f"Elapsed:          {elapsed:.1f}s",
         f"",
         f"Model:",
