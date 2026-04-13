@@ -7,6 +7,7 @@ MODEL_OPTIONS = [
     "openai/gpt-5.2",
     "anthropic/claude-opus-4.6",
     "google/gemini-3-flash-preview",
+    "deepseek/deepseek-v3.2",
 ]
 
 _label_layout = widgets.Layout(width="220px")
