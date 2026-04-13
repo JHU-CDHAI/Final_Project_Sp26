@@ -39,3 +39,6 @@ luis-agent/
 
 # OpenRouter usage script
 openrouter_usage.py
+
+# Notebook activity brainstorm (local notes)
+3_stage_agent/notebook_activity_ideas.md
