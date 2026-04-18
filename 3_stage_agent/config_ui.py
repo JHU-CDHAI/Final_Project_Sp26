@@ -116,18 +116,34 @@ _s2_topics = widgets.Textarea(
 _s2_input_form = widgets.VBox([
     widgets.HTML(
         '<b style="font-size:18px;">Research Context</b>'
-        '<p style="color:#555;margin:2px 0 6px;">Copy the <b>Problem Framing</b> '
-        'and <b>Constraints</b> sections from your Stage 1 output and paste them '
-        'into the box below. This gives the research agents background on your '
-        'business question.</p>'
+        '<p style="color:#555;margin:2px 0 6px;">Paste your <b>Business Question</b>, '
+        '<b>Problem Framing</b>, and <b>Constraints</b> from Stage 1\'s '
+        '<code>output.md</code>. Example:</p>'
+        '<pre style="background:#f5f5f5;padding:10px;border-radius:4px;'
+        'font-size:12px;white-space:pre-wrap;margin:4px 0 8px;color:#333;'
+        'border:1px solid #e0e0e0;">## Business Question\n'
+        'How do I start a business in Sweden?\n\n'
+        '## Problem Framing\n'
+        'The client seeks guidance on how to start a business in Sweden, '
+        'including understanding legal requirements, market conditions, and '
+        'practical steps for business set-up. The goal is to ensure compliance '
+        'with Sweden&#39;s regulatory framework while identifying viable '
+        'business opportunities in the local market.\n\n'
+        '**Constraints:** Key constraints include navigating Swedish legal '
+        'requirements, availability of start-up capital, and understanding '
+        'local market dynamics and competition.</pre>'
     ),
     _s2_context,
     widgets.HTML(
         '<b style="font-size:18px;display:block;margin-top:48px;">Research Topics</b>'
-        '<p style="color:#555;margin:2px 0 6px;">Copy the <b>Research Topics</b> '
-        'list from your Stage 1 output and paste it below.</p>'
-        '<p style="color:#d32f2f;font-weight:600;font-size:16px;margin:2px 0 6px;">'
-        'Put exactly one topic per line.</p>'
+        '<p style="color:#555;margin:2px 0 6px;">Paste the numbered '
+        '<b>Research Topics</b> list from Stage 1 &mdash; one per line. Example:</p>'
+        '<pre style="background:#f5f5f5;padding:10px;border-radius:4px;'
+        'font-size:12px;white-space:pre-wrap;margin:4px 0 8px;color:#333;'
+        'border:1px solid #e0e0e0;">1. Legal Requirements for Starting a '
+        'Business in Sweden: A Step-by-Step Guide for Entrepreneurs\n'
+        '2. Market Analysis of [Specific Industry] in Sweden: Key Competitors, '
+        'Customer Segments, and Growth Opportunities</pre>'
     ),
     _s2_topics,
     widgets.HTML(
