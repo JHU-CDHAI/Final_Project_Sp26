@@ -231,9 +231,8 @@ def get_config_stage2() -> dict:
 # ============================================================================
 
 _s3_model = widgets.Dropdown(
-    options=["anthropic/claude-opus-4.6"],
+    options=MODEL_OPTIONS,
     value="anthropic/claude-opus-4.6",
-    disabled=True,
     layout=_widget_layout,
 )
 _s3_max_rev_plan = widgets.BoundedIntText(value=2, min=1, max=5, layout=_slider_layout)
