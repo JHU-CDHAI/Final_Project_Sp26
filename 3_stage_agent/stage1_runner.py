@@ -211,14 +211,35 @@ def show_answer_widget():
             placeholder="Type your answer here, or leave blank to approve as-is…",
             layout=widgets.Layout(width="560px", height="80px"),
         )
+
+        btn_layout = widgets.Layout(height="36px")
+
+        restart_btn = widgets.Button(
+            description="↺ Re-start",
+            button_style="warning",
+            layout=widgets.Layout(width="130px", height="36px"),
+            tooltip="Wipe this conversation and re-submit your original question from scratch.",
+        )
         submit_btn = widgets.Button(
             description="Submit Answer",
             button_style="danger",
             layout=widgets.Layout(width="170px", height="36px"),
+            tooltip="Send your answer to the AI and continue.",
+        )
+        approve_btn = widgets.Button(
+            description="✓ Approve & End",
+            button_style="success",
+            layout=widgets.Layout(width="160px", height="36px"),
+            tooltip="Approve the current framing as-is and finalize Stage 1 output.",
         )
 
+        def _disable_all():
+            restart_btn.disabled = True
+            submit_btn.disabled  = True
+            approve_btn.disabled = True
+
         def _on_submit(b):
-            submit_btn.disabled = True
+            _disable_all()
             answer = answer_input.value
             answer_input.value = ""
             with out:
@@ -229,9 +250,34 @@ def show_answer_widget():
                 out.clear_output()
                 if more:
                     _render()
-                # If not more: _finish() already rendered the completion banner
+
+        def _on_approve(b):
+            _disable_all()
+            with out:
+                out.clear_output()
+                display(HTML("<i style='color:#888'>Approving and finalizing…</i>"))
+            more = submit_answer("approved")
+            with out:
+                out.clear_output()
+                if more:
+                    _render()
+
+        def _on_restart(b):
+            _disable_all()
+            mod         = _session["mod"]
+            config_dict = _session["config_dict"]
+            with out:
+                out.clear_output()
+                display(HTML("<i style='color:#888'>Re-starting — please wait…</i>"))
+            start_stage1(mod, config_dict)
+            with out:
+                out.clear_output()
+                if not _session.get("done"):
+                    _render()
 
         submit_btn.on_click(_on_submit)
+        approve_btn.on_click(_on_approve)
+        restart_btn.on_click(_on_restart)
 
         with out:
             out.clear_output()
@@ -245,11 +291,15 @@ def show_answer_widget():
                                 border-left:3px solid #e53935;padding-left:12px'>{q}</div>
                     </div>
                     <p style='color:#555;font-size:13px;margin:0 0 6px'>
-                    Type your answer below and click <b>Submit Answer</b>.<br>
-                    Leave blank and submit to <b>approve</b> the current framing and continue.</p>
+                    Type your answer below and click <b>Submit Answer</b>, or
+                    click <b>Approve &amp; End</b> to accept the current framing and finish.<br>
+                    Use <b>Re-start</b> to wipe this session and generate a fresh response.</p>
                 """),
                 answer_input,
-                submit_btn,
+                widgets.HBox(
+                    [restart_btn, submit_btn, approve_btn],
+                    layout=widgets.Layout(gap="10px", margin="6px 0 0 0"),
+                ),
             ]))
 
     _render()
