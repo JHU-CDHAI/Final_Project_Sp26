@@ -11,6 +11,7 @@ Stage 2: input form replaced — auto-loads Stage 1 handoff.json instead of copy
 """
 
 import os
+from datetime import datetime
 from pathlib import Path
 
 import yaml
@@ -274,17 +275,20 @@ def show_stage1():
     # Wire Save Question button
     def _on_save(b):
         text = _save_question_to_file()
+        ts = datetime.now().strftime("%H:%M:%S")
         with _s1_save_status:
             _s1_save_status.clear_output()
             if text:
                 display(HTML(
                     "<span style='color:#388e3c;font-size:13px'>"
-                    f"✓ Saved to <code>{_question_path().name}</code></span>"
+                    f"✓ Saved to <code>{_question_path().name}</code> "
+                    f"<span style='color:#aaa'>({ts})</span></span>"
                 ))
             else:
                 display(HTML(
                     "<span style='color:#e53935;font-size:13px'>"
-                    "⚠ Question is empty — please type something first.</span>"
+                    f"⚠ Question is empty — please type something first. "
+                    f"<span style='color:#aaa'>({ts})</span></span>"
                 ))
 
     _s1_save_btn.on_click(_on_save)
@@ -311,12 +315,14 @@ def show_stage1():
             "max_topics_revision": _s1_max_topics_rev.value,
         }
         _save_yaml(_config_path(), cfg)
+        ts = datetime.now().strftime("%H:%M:%S")
         with _status_banner:
             _status_banner.clear_output()
             display(HTML(
                 "<div style='border:2px solid #388e3c;padding:8px 12px;border-radius:6px;"
                 "background:#f1f8e9;margin-bottom:8px'>"
-                f"✓ Settings saved to <code>{_config_path().name}</code></div>"
+                f"✓ Settings saved to <code>{_config_path().name}</code> "
+                f"<span style='color:#aaa;font-size:12px'>({ts})</span></div>"
             ))
 
     def _on_reset(b):
