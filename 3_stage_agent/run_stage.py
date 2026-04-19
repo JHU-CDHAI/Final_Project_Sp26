@@ -37,6 +37,21 @@ def _reload_common():
     return importlib.reload(common)
 
 
+def setup_stage1(repo_dir: str):
+    """
+    Bootstrap helper — call once after cloning the repo and mounting Drive.
+    Adds the agent dir to sys.path, creates my_question.txt if missing,
+    and shows the config UI. Returns the config_ui module so the caller
+    can pass it straight to load_stage1().
+    """
+    import config_ui as _cui
+    _ensure_path(repo_dir)
+    importlib.reload(_cui)
+    _cui.create_question_file()
+    _cui.show_stage1()
+    return _cui
+
+
 def _run_graph(agent, lc_config, initial_state, output_dir):
     """Shared interrupt loop for all stages."""
     report_export.start_log(output_dir)
