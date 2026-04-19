@@ -175,6 +175,7 @@ _s1_query          = widgets.Textarea(
     placeholder="Type your business question here, or edit my_question.txt directly…",
     layout=widgets.Layout(width="560px", height="100px"),
 )
+_s1_initial_question: str = ""  # value pre-filled at show_stage1() time; used to detect file edits
 _s1_model          = widgets.Dropdown(options=MODEL_OPTIONS, value=_DEFAULTS["model"], layout=_widget_layout)
 _s1_max_clarify    = widgets.BoundedIntText(value=_DEFAULTS["max_clarify_rounds"],  min=1, max=10, layout=_slider_layout)
 _s1_max_topics     = widgets.BoundedIntText(value=_DEFAULTS["max_research_topics"], min=1, max=5,  layout=_slider_layout)
@@ -242,12 +243,14 @@ def _save_question_to_file():
 
 def show_stage1():
     """Display config UI, pre-filling question and dropdowns from saved files."""
+    global _s1_initial_question
     # Pre-fill question textarea from txt (strip comment lines)
     qpath = _question_path()
     if qpath.exists():
         raw = qpath.read_text(encoding="utf-8")
         lines = [l for l in raw.splitlines() if not l.strip().startswith("#")]
         _s1_query.value = "\n".join(lines).strip()
+    _s1_initial_question = _s1_query.value  # snapshot so get_config_stage1 can detect direct file edits
 
     # Pre-fill dropdowns from YAML
     saved = _load_yaml(_config_path())
@@ -319,13 +322,19 @@ def get_config_stage1() -> dict:
     }
     _save_yaml(_config_path(), stage1_cfg)
 
-    # Sync: textarea is primary source → write to txt so file stays up to date
-    question = _save_question_to_file()
-
-    # If textarea is empty, fall back to reading the txt file directly
-    # (user may have edited the file without reloading the UI)
-    if not question:
-        question = read_question()  # raises ValueError with warning if still empty
+    # Determine the question source.
+    # If the textarea was changed since setup, it's the primary source → sync to file.
+    # If the textarea is unchanged (or empty), the file may have been edited directly
+    # → read from file without overwriting it first.
+    textarea_val = _s1_query.value.strip()
+    if textarea_val and textarea_val != _s1_initial_question:
+        # User typed something new in the textarea
+        question = textarea_val
+        _save_question_to_file()
+    else:
+        # Textarea empty or unchanged — file may have been edited directly
+        question = read_question()       # raises ValueError with warning if still empty
+        _s1_query.value = question       # sync textarea ← file so they stay in sync
 
     display(HTML(f"""
         <div style='border:2px solid #388e3c;padding:10px;border-radius:6px;
