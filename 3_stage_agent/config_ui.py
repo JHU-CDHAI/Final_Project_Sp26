@@ -289,13 +289,35 @@ def show_stage1():
 
     _s1_save_btn.on_click(_on_save)
 
-    # Reset to Defaults button
+    # Save Config / Reset to Defaults buttons
+    save_config_btn = widgets.Button(
+        description="Save Config",
+        button_style="success",
+        icon="check",
+        layout=widgets.Layout(width="150px", margin="12px 0 0 0"),
+    )
     reset_btn = widgets.Button(
         description="Reset to Defaults",
         button_style="warning",
         icon="refresh",
-        layout=widgets.Layout(width="180px", margin="12px 0 0 0"),
+        layout=widgets.Layout(width="180px", margin="12px 0 0 6px"),
     )
+
+    def _on_save_config(b):
+        cfg = {
+            "model":               _s1_model.value,
+            "max_clarify_rounds":  _s1_max_clarify.value,
+            "max_research_topics": _s1_max_topics.value,
+            "max_topics_revision": _s1_max_topics_rev.value,
+        }
+        _save_yaml(_config_path(), cfg)
+        with _status_banner:
+            _status_banner.clear_output()
+            display(HTML(
+                "<div style='border:2px solid #388e3c;padding:8px 12px;border-radius:6px;"
+                "background:#f1f8e9;margin-bottom:8px'>"
+                f"✓ Settings saved to <code>{_config_path().name}</code></div>"
+            ))
 
     def _on_reset(b):
         _config_path().unlink(missing_ok=True)
@@ -308,8 +330,13 @@ def show_stage1():
                 "↺ Reset to defaults. Saved config deleted.</div>"
             ))
 
+    save_config_btn.on_click(_on_save_config)
     reset_btn.on_click(_on_reset)
-    display(widgets.VBox([_status_banner, _s1_form, reset_btn]))
+    display(widgets.VBox([
+        _status_banner,
+        _s1_form,
+        widgets.HBox([save_config_btn, reset_btn]),
+    ]))
 
 
 def get_config_stage1() -> dict:
