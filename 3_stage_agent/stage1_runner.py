@@ -4,17 +4,17 @@ stage1_runner.py — Widget-based Q&A runner for Stage 1 (Design 3, Option A).
 Pipeline:  intake → clarify_problem → [Gate 1: Problem Framing] → plan_research_topics
                                     → [Gate 2: Research Topics]  → END
 
-Two Output widgets are used:
-  history_out — accumulates approved-phase summary cards (never cleared)
-  gate_out    — shows the current gate widget (cleared/replaced each gate)
+Two separate functions for two separate notebook cells:
 
-Notebook usage:
-    # step5a cell — start the agent
-    import stage1_runner
-    stage1_runner.start_stage1(mod, CONFIG)
+  Cell 5b:  stage1_runner.show_framing_widget()   — Problem Framing review
+  Cell 5c:  stage1_runner.show_topics_widget()    — Research Topics review
 
-    # step5b cell — always rendered below, updates live
-    stage1_runner.show_answer_widget()
+Each cell:
+  - While active:   shows the gate question, a feedback textarea, and 3 buttons.
+  - After approval: replaces itself with a finalized-content card (from output.md)
+                    and a Re-start button in case the student approved by accident.
+
+Re-start from either cell re-renders both widgets in place.
 """
 
 import time
@@ -32,18 +32,21 @@ import report_export
 DRIVE_OUTPUT_DIR = Path("/content/drive/MyDrive/AI_Essentials_Final_Project")
 
 # ============================================================================
-# Module-level session — persists across cells within the same kernel session
+# Module-level state
 # ============================================================================
 
 _session: dict = {}
+
+# Widget handles and render callbacks that survive _session.clear() across
+# restarts — lets Re-start from either cell update both cells in place.
+_widget_refs: dict = {}
 
 # ============================================================================
 # Internal helpers
 # ============================================================================
 
 def _extract_interrupt() -> str | None:
-    """Return the pending interrupt message, or None if graph is done.
-    Also updates _session['gate_type'] to 'framing' or 'topics'."""
+    """Return pending interrupt text; also updates _session['gate_type']."""
     snapshot = _session["agent"].get_state(_session["lc_config"])
     if not snapshot.next:
         _session["gate_type"] = ""
@@ -60,13 +63,11 @@ def _extract_interrupt() -> str | None:
 
 
 def _finish(result: dict):
-    """Save all Stage 1 outputs and display the completion banner."""
+    """Save all Stage 1 outputs and show the completion banner."""
     from common import save_handoff, save_summary_stage1, save_meta, save_timings
 
-    # Show research-topics summary card via widget callback if registered
-    cb = _session.get("_show_phase_complete")
-    if cb:
-        cb("topics")
+    _session["approved_topics"] = result.get("research_topics", [])
+    _session["done"] = True
 
     config_dict = _session["config_dict"]
     output_dir  = _session["output_dir"]
@@ -118,7 +119,6 @@ def _finish(result: dict):
         print(f"Drive: {drive_dest}")
 
     report_export.stop_log()
-    _session["done"] = True
 
     display(HTML("<hr style='border:4px solid #1B2A4A; margin:24px 0'>"))
     display(Markdown("## Stage 1 Complete"))
@@ -126,14 +126,11 @@ def _finish(result: dict):
     print(f"Local:   {output_dir.resolve()}")
 
 # ============================================================================
-# Public API
+# Public API — called from notebook cells
 # ============================================================================
 
 def start_stage1(mod, config_dict: dict):
-    """
-    Called from step5a cell. Builds the LangGraph agent, runs it to the first
-    interrupt, and stores session state for the Answer cell (step5b) to use.
-    """
+    """Cell 5a. Builds the agent and runs to the first interrupt (Gate 1)."""
     ts         = datetime.now().strftime("%Y%m%d_%H%M%S")
     output_dir = Path(ts)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -155,36 +152,34 @@ def start_stage1(mod, config_dict: dict):
         gate_num=0,
         gate_type="",
         done=False,
+        framing_approved=False,
         t0=time.time(),
     )
 
     result = agent.invoke({"user_query": mod.INPUT_QUERY}, lc_config)
     _session["last_result"] = result
 
-    pending = _extract_interrupt()  # sets _session["gate_type"]
+    pending = _extract_interrupt()
     if pending:
         _session["gate_num"]        += 1
         _session["pending_question"] = pending
         display(HTML(
-            "<div style='border:2px solid #f57c00;padding:10px 14px;border-radius:6px;"
+            "<div style='border:2px solid #e65100;padding:10px 14px;border-radius:6px;"
             "background:#fff8e1;margin-top:12px;font-size:15px'>"
-            "⬇ <b>The AI has a question for you.</b> "
-            "Run the <b>Answer cell below</b> to respond.</div>"
+            "⬇ <b>The AI has framed your problem.</b> "
+            "Run <b>Cell 5b below</b> to review and respond.</div>"
         ))
     else:
         _finish(result)
 
 
 def submit_answer(answer_text: str) -> bool:
-    """
-    Called by the Submit / Approve buttons in step5b. Resumes the LangGraph agent
-    with the student's answer. Returns True if another gate is pending, False if done.
-    """
+    """Resume the agent. Returns True if another gate is pending, False if done."""
     feedback = answer_text.strip() or "approved"
     result   = _session["agent"].invoke(Command(resume=feedback), _session["lc_config"])
     _session["last_result"] = result
 
-    pending = _extract_interrupt()  # updates _session["gate_type"]
+    pending = _extract_interrupt()
     if pending:
         _session["gate_num"]        += 1
         _session["pending_question"] = pending
@@ -193,136 +188,111 @@ def submit_answer(answer_text: str) -> bool:
     _finish(result)
     return False
 
+# ============================================================================
+# Shared widget helpers
+# ============================================================================
 
-def show_answer_widget():
+def _make_restart_btn() -> widgets.Button:
+    return widgets.Button(
+        description="↺ Re-start",
+        button_style="warning",
+        layout=widgets.Layout(width="140px", height="36px"),
+        tooltip="Wipe this conversation and re-submit your original question from scratch.",
+    )
+
+
+def _do_restart():
+    """Called by any Re-start button. Resets state and re-renders both cells."""
+    mod         = _session["mod"]
+    config_dict = _session["config_dict"]
+
+    # Show "waiting" in topics cell immediately (before session is cleared)
+    topics_out = _widget_refs.get("topics_out")
+    if topics_out:
+        with topics_out:
+            topics_out.clear_output()
+            display(HTML(
+                "<div style='border:2px solid #999;padding:10px;border-radius:6px;"
+                "background:#f5f5f5;color:#555'>"
+                "Re-starting — complete Problem Framing above first.</div>"
+            ))
+
+    start_stage1(mod, config_dict)
+
+    # Re-render framing cell to the active gate
+    render_framing = _widget_refs.get("render_framing_gate")
+    if render_framing:
+        render_framing()
+
+# ============================================================================
+# Cell 5b — Problem Framing (Gate 1)
+# ============================================================================
+
+def show_framing_widget():
     """
-    Render the Q&A widget. Call once from the step5b cell.
-
-    Layout:
-      history_out — approved-phase summary cards accumulate here
-      gate_out    — current gate form (replaced on each gate transition)
+    Renders the Problem Framing gate widget.
+    - Active:   amber gate card + feedback textarea + 3 buttons
+    - Complete: green card with the saved framing text + Re-start button
     """
-    if _session.get("done"):
-        display(HTML(
-            "<div style='border:2px solid #388e3c;padding:10px;border-radius:6px;"
-            "background:#f1f8e9'>✓ Stage 1 is already complete.</div>"
-        ))
-        return
+    out = widgets.Output()
+    display(out)
+    _widget_refs["framing_out"] = out
 
-    if not _session:
-        display(HTML(
-            "<div style='border:2px solid #e53935;padding:10px;border-radius:6px;"
-            "background:#fff3f3'>⚠ Run the cell above (Step 5a) first.</div>"
-        ))
-        return
+    # ── Completion card ──────────────────────────────────────────────────────
 
-    history_out = widgets.Output()
-    gate_out    = widgets.Output()
-    display(widgets.VBox([history_out, gate_out]))
+    def _render_complete():
+        framing     = _session.get("approved_framing", "")
+        constraints = _session.get("approved_constraints", "")
+        constraints_html = (
+            f"<div style='margin-top:10px;font-size:13px'>"
+            f"<b>Constraints:</b> {constraints}</div>"
+            if constraints and constraints.lower() not in ("none", "")
+            else ""
+        )
+        restart_btn = _make_restart_btn()
+        restart_btn.on_click(lambda b: _do_restart())
 
-    # ── Phase-complete summary cards ─────────────────────────────────────────
-
-    def _show_phase_complete(phase: str):
-        result = _session.get("last_result", {})
-        with history_out:
-            if phase == "framing":
-                framing     = result.get("problem_framing", "")
-                constraints = result.get("constraints_noted", "")
-                constraints_html = (
-                    f"<div style='margin-top:8px;font-size:13px'>"
-                    f"<b>Constraints:</b> {constraints}</div>"
-                    if constraints and constraints.lower() not in ("none", "")
-                    else ""
-                )
-                display(HTML(f"""
-                    <div style='border:2px solid #388e3c;padding:14px;border-radius:8px;
-                                background:#f1f8e9;margin-bottom:12px'>
-                      <div style='font-weight:bold;color:#388e3c;font-size:15px;margin-bottom:8px'>
-                        ✓ Problem Framing Approved</div>
-                      <div style='white-space:pre-wrap;font-size:14px'>{framing}</div>
+        with out:
+            out.clear_output()
+            display(widgets.VBox([
+                widgets.HTML(f"""
+                    <div style='border:2px solid #388e3c;padding:16px;border-radius:8px;
+                                background:#f1f8e9;margin-bottom:10px'>
+                      <div style='font-weight:bold;color:#388e3c;font-size:16px;margin-bottom:10px'>
+                        ✓ Problem Framing Approved — saved to output.md</div>
+                      <div style='white-space:pre-wrap;font-size:14px;
+                                  border-left:3px solid #388e3c;padding-left:12px'>{framing}</div>
                       {constraints_html}
                     </div>
-                """))
+                    <p style='color:#888;font-size:12px;margin:0 0 6px'>
+                      If you approved by accident, click Re-start to begin again.</p>
+                """),
+                restart_btn,
+            ]))
 
-            elif phase == "topics":
-                topics = result.get("research_topics", [])
-                items  = "".join(
-                    f"<li style='margin:4px 0'>{t}</li>" for t in topics
-                )
-                display(HTML(f"""
-                    <div style='border:2px solid #1565c0;padding:14px;border-radius:8px;
-                                background:#e3f2fd;margin-bottom:12px'>
-                      <div style='font-weight:bold;color:#1565c0;font-size:15px;margin-bottom:8px'>
-                        ✓ Research Topics Approved ({len(topics)} topics)</div>
-                      <ol style='margin:4px 0;padding-left:20px;font-size:14px'>{items}</ol>
-                    </div>
-                """))
+    _widget_refs["render_framing_complete"] = _render_complete
 
-    # Register so _finish() can call it without importing show_answer_widget
-    _session["_show_phase_complete"] = _show_phase_complete
+    # ── Active gate ──────────────────────────────────────────────────────────
 
-    # ── Gate renderer ────────────────────────────────────────────────────────
-
-    def _render():
-        gate_type = _session.get("gate_type", "")
-        q         = _session.get("pending_question", "")
-        gate_num  = _session.get("gate_num", 1)
-
-        if gate_type == "framing":
-            border_color  = "#e65100"
-            bg_color      = "#fff8e1"
-            gate_label    = "Stage 1 — Problem Framing Review"
-            hint          = (
-                "The AI has framed your business question. "
-                "Provide feedback to refine it, or approve to move to research topic planning."
-            )
-            submit_label  = "Submit Feedback"
-            approve_label = "✓ Approve & Continue"
-            approve_tip   = "Approve the problem framing and proceed to topic planning."
-        elif gate_type == "topics":
-            border_color  = "#1565c0"
-            bg_color      = "#e3f2fd"
-            gate_label    = "Stage 1 — Research Topics Review"
-            hint          = (
-                "Review the proposed research topics. "
-                "Provide feedback to add, remove, or rephrase, or approve to finalize Stage 1."
-            )
-            submit_label  = "Submit Feedback"
-            approve_label = "✓ Approve & End"
-            approve_tip   = "Approve the research topics and finalize Stage 1."
-        else:
-            border_color  = "#e53935"
-            bg_color      = "#fff3f3"
-            gate_label    = f"Human Gate {gate_num}"
-            hint          = (
-                "Type your answer below and click Submit Answer, or "
-                "click Approve & End to accept as-is."
-            )
-            submit_label  = "Submit Answer"
-            approve_label = "✓ Approve & End"
-            approve_tip   = "Approve as-is and finalize Stage 1."
+    def _render_gate():
+        q = _session.get("pending_question", "")
 
         answer_input = widgets.Textarea(
-            placeholder="Type feedback here, or leave blank and click Approve…",
+            placeholder="Type feedback here, or leave blank and click Approve & Continue…",
             layout=widgets.Layout(width="560px", height="80px"),
         )
-        restart_btn = widgets.Button(
-            description="↺ Re-start",
-            button_style="warning",
-            layout=widgets.Layout(width="130px", height="36px"),
-            tooltip="Wipe this conversation and re-submit your original question from scratch.",
-        )
-        submit_btn = widgets.Button(
-            description=submit_label,
+        restart_btn = _make_restart_btn()
+        submit_btn  = widgets.Button(
+            description="Submit Feedback",
             button_style="primary",
             layout=widgets.Layout(width="170px", height="36px"),
-            tooltip="Send your feedback to the AI.",
+            tooltip="Send your feedback to refine the problem framing.",
         )
         approve_btn = widgets.Button(
-            description=approve_label,
+            description="✓ Approve & Continue",
             button_style="success",
             layout=widgets.Layout(width="190px", height="36px"),
-            tooltip=approve_tip,
+            tooltip="Approve this framing and proceed to research topic planning.",
         )
 
         def _disable_all():
@@ -334,64 +304,46 @@ def show_answer_widget():
             _disable_all()
             answer = answer_input.value
             answer_input.value = ""
-            with gate_out:
-                gate_out.clear_output()
+            with out:
+                out.clear_output()
                 display(HTML("<i style='color:#888'>Sending your feedback…</i>"))
             more = submit_answer(answer)
-            with gate_out:
-                gate_out.clear_output()
-                if more:
-                    _render()
+            if more and _session.get("gate_type") == "framing":
+                _render_gate()
+            else:
+                # Blank submit acted as approve, or framing was accepted
+                _capture_framing_and_complete(more)
 
         def _on_approve(b):
             _disable_all()
-            prev_gate = _session.get("gate_type", "")
-            with gate_out:
-                gate_out.clear_output()
+            with out:
+                out.clear_output()
                 display(HTML("<i style='color:#888'>Approving…</i>"))
             more = submit_answer("approved")
-            # After Gate 1 approval, show framing card immediately.
-            # Topics card is shown from _finish() via _show_phase_complete callback.
-            if prev_gate == "framing":
-                _show_phase_complete("framing")
-            with gate_out:
-                gate_out.clear_output()
-                if more:
-                    _render()
+            _capture_framing_and_complete(more)
 
         def _on_restart(b):
             _disable_all()
-            mod         = _session["mod"]
-            config_dict = _session["config_dict"]
-            with gate_out:
-                gate_out.clear_output()
-                display(HTML("<i style='color:#888'>Re-starting — please wait…</i>"))
-            with history_out:
-                history_out.clear_output()
-            start_stage1(mod, config_dict)
-            # Re-register callback after start_stage1 clears _session
-            _session["_show_phase_complete"] = _show_phase_complete
-            with gate_out:
-                gate_out.clear_output()
-                if not _session.get("done"):
-                    _render()
+            _do_restart()
 
         submit_btn.on_click(_on_submit)
         approve_btn.on_click(_on_approve)
         restart_btn.on_click(_on_restart)
 
-        with gate_out:
-            gate_out.clear_output()
+        with out:
+            out.clear_output()
             display(widgets.VBox([
                 widgets.HTML(f"""
-                    <div style='border:3px solid {border_color};padding:16px;border-radius:8px;
-                                background:{bg_color};margin-bottom:10px'>
-                      <span style='font-size:18px;font-weight:bold;color:{border_color}'>
-                        ⚠ {gate_label}</span>
+                    <div style='border:3px solid #e65100;padding:16px;border-radius:8px;
+                                background:#fff8e1;margin-bottom:10px'>
+                      <span style='font-size:18px;font-weight:bold;color:#e65100'>
+                        ⚠ Stage 1 — Problem Framing Review</span>
                       <div style='margin-top:12px;font-size:14px;white-space:pre-wrap;
-                                  border-left:3px solid {border_color};padding-left:12px'>{q}</div>
+                                  border-left:3px solid #e65100;padding-left:12px'>{q}</div>
                     </div>
-                    <p style='color:#555;font-size:13px;margin:0 0 6px'>{hint}</p>
+                    <p style='color:#555;font-size:13px;margin:0 0 6px'>
+                      Review the AI's framing of your business question.
+                      Provide feedback to refine it, or approve to proceed to research topic planning.</p>
                 """),
                 answer_input,
                 widgets.HBox(
@@ -400,4 +352,182 @@ def show_answer_widget():
                 ),
             ]))
 
-    _render()
+    def _capture_framing_and_complete(more: bool):
+        """Save framing content into session then show completion card."""
+        result = _session.get("last_result", {})
+        _session["approved_framing"]    = result.get("problem_framing", "")
+        _session["approved_constraints"] = result.get("constraints_noted", "")
+        _session["framing_approved"]    = True
+        _render_complete()
+        # If topics gate is now ready, signal the topics widget
+        if more and _session.get("gate_type") == "topics":
+            render_topics = _widget_refs.get("render_topics_gate")
+            if render_topics:
+                render_topics()
+
+    _widget_refs["render_framing_gate"] = _render_gate
+
+    # ── Initial render ───────────────────────────────────────────────────────
+    if not _session:
+        with out:
+            display(HTML(
+                "<div style='border:2px solid #e53935;padding:10px;border-radius:6px;"
+                "background:#fff3f3'>⚠ Run Cell 5a (start_stage1) first.</div>"
+            ))
+    elif _session.get("framing_approved"):
+        _render_complete()
+    elif _session.get("gate_type") == "framing":
+        _render_gate()
+    else:
+        with out:
+            display(HTML(
+                "<div style='border:2px solid #e53935;padding:10px;border-radius:6px;"
+                "background:#fff3f3'>⚠ Run Cell 5a (start_stage1) first.</div>"
+            ))
+
+# ============================================================================
+# Cell 5c — Research Topics (Gate 2)
+# ============================================================================
+
+def show_topics_widget():
+    """
+    Renders the Research Topics gate widget.
+    - Waiting:  grey card if Problem Framing not yet approved
+    - Active:   blue gate card + feedback textarea + 3 buttons
+    - Complete: blue card with the saved topics list + Re-start button
+    """
+    out = widgets.Output()
+    display(out)
+    _widget_refs["topics_out"] = out
+
+    # ── Completion card ──────────────────────────────────────────────────────
+
+    def _render_complete():
+        topics = _session.get("approved_topics", [])
+        items  = "".join(f"<li style='margin:4px 0'>{t}</li>" for t in topics)
+        restart_btn = _make_restart_btn()
+        restart_btn.on_click(lambda b: _do_restart())
+
+        with out:
+            out.clear_output()
+            display(widgets.VBox([
+                widgets.HTML(f"""
+                    <div style='border:2px solid #1565c0;padding:16px;border-radius:8px;
+                                background:#e3f2fd;margin-bottom:10px'>
+                      <div style='font-weight:bold;color:#1565c0;font-size:16px;margin-bottom:10px'>
+                        ✓ Research Topics Approved ({len(topics)} topics) — saved to output.md</div>
+                      <ol style='margin:4px 0;padding-left:20px;font-size:14px'>{items}</ol>
+                    </div>
+                    <p style='color:#888;font-size:12px;margin:0 0 6px'>
+                      Stage 1 is complete. If you approved by accident, click Re-start to begin again.</p>
+                """),
+                restart_btn,
+            ]))
+
+    _widget_refs["render_topics_complete"] = _render_complete
+
+    # ── Active gate ──────────────────────────────────────────────────────────
+
+    def _render_gate():
+        q = _session.get("pending_question", "")
+
+        answer_input = widgets.Textarea(
+            placeholder="Type feedback to change topics, or leave blank and click Approve & End…",
+            layout=widgets.Layout(width="560px", height="80px"),
+        )
+        restart_btn = _make_restart_btn()
+        submit_btn  = widgets.Button(
+            description="Submit Feedback",
+            button_style="primary",
+            layout=widgets.Layout(width="170px", height="36px"),
+            tooltip="Send feedback to revise the research topics.",
+        )
+        approve_btn = widgets.Button(
+            description="✓ Approve & End",
+            button_style="success",
+            layout=widgets.Layout(width="160px", height="36px"),
+            tooltip="Approve the research topics and finalize Stage 1.",
+        )
+
+        def _disable_all():
+            restart_btn.disabled = True
+            submit_btn.disabled  = True
+            approve_btn.disabled = True
+
+        def _on_submit(b):
+            _disable_all()
+            answer = answer_input.value
+            answer_input.value = ""
+            with out:
+                out.clear_output()
+                display(HTML("<i style='color:#888'>Sending your feedback…</i>"))
+            more = submit_answer(answer)
+            if more:
+                _render_gate()
+            else:
+                _render_complete()
+
+        def _on_approve(b):
+            _disable_all()
+            with out:
+                out.clear_output()
+                display(HTML("<i style='color:#888'>Approving and finalizing…</i>"))
+            more = submit_answer("approved")
+            if not more:
+                _render_complete()
+
+        def _on_restart(b):
+            _disable_all()
+            _do_restart()
+
+        submit_btn.on_click(_on_submit)
+        approve_btn.on_click(_on_approve)
+        restart_btn.on_click(_on_restart)
+
+        with out:
+            out.clear_output()
+            display(widgets.VBox([
+                widgets.HTML(f"""
+                    <div style='border:3px solid #1565c0;padding:16px;border-radius:8px;
+                                background:#e3f2fd;margin-bottom:10px'>
+                      <span style='font-size:18px;font-weight:bold;color:#1565c0'>
+                        ⚠ Stage 1 — Research Topics Review</span>
+                      <div style='margin-top:12px;font-size:14px;white-space:pre-wrap;
+                                  border-left:3px solid #1565c0;padding-left:12px'>{q}</div>
+                    </div>
+                    <p style='color:#555;font-size:13px;margin:0 0 6px'>
+                      Review the proposed research topics.
+                      Provide feedback to add, remove, or rephrase, or approve to finalize Stage 1.</p>
+                """),
+                answer_input,
+                widgets.HBox(
+                    [restart_btn, submit_btn, approve_btn],
+                    layout=widgets.Layout(gap="10px", margin="6px 0 0 0"),
+                ),
+            ]))
+
+    _widget_refs["render_topics_gate"] = _render_gate
+
+    # ── Initial render ───────────────────────────────────────────────────────
+    if _session.get("done"):
+        _render_complete()
+    elif _session.get("gate_type") == "topics":
+        _render_gate()
+    elif _session.get("framing_approved"):
+        with out:
+            display(HTML(
+                "<div style='border:2px solid #999;padding:10px;border-radius:6px;"
+                "background:#f5f5f5;color:#555'>Generating research topics…</div>"
+            ))
+    elif not _session:
+        with out:
+            display(HTML(
+                "<div style='border:2px solid #999;padding:10px;border-radius:6px;"
+                "background:#f5f5f5;color:#555'>Complete Cell 5b (Problem Framing) first.</div>"
+            ))
+    else:
+        with out:
+            display(HTML(
+                "<div style='border:2px solid #999;padding:10px;border-radius:6px;"
+                "background:#f5f5f5;color:#555'>Complete the Problem Framing step above first.</div>"
+            ))
