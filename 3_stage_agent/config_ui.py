@@ -109,24 +109,36 @@ def create_question_file():
         """))
 
 
+def _is_instruction_line(line: str) -> bool:
+    """
+    Returns True if a line is our auto-generated instruction text.
+    Matches whether or not the student removed the leading '#'.
+    """
+    core = line.strip().lstrip("#").strip()
+    return core.startswith("⚠ Please enter your business question")
+
+
 def read_question() -> str:
     """
     Reads my_question.txt and returns the question string.
-    Raises ValueError with a visible warning if the file is empty.
+    Strips comment lines (#) and instruction lines (with or without #).
+    Raises ValueError with a visible warning if nothing remains.
     """
     path = _question_path()
     if not path.exists():
         create_question_file()
 
-    raw   = path.read_text(encoding="utf-8")
-    lines = [l for l in raw.splitlines() if not l.strip().startswith("#")]
+    raw = path.read_text(encoding="utf-8")
+    lines = [
+        l for l in raw.splitlines()
+        if not l.strip().startswith("#") and not _is_instruction_line(l)
+    ]
     question = "\n".join(lines).strip()
 
     if not question:
-        # Write a reminder comment into the file so the student sees it there too
+        # Write a single reminder line — no "delete this" instruction
         path.write_text(
-            "# ⚠ Please enter your business question below this line, then re-run Step 5.\n"
-            "# Delete this comment line when you start typing.\n\n"
+            "# ⚠ Please enter your business question below this line, then re-run Step 5.\n\n"
         )
         display(HTML("""
             <div style='border:3px solid #e53935;padding:16px;border-radius:8px;
