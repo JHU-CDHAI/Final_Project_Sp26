@@ -314,7 +314,7 @@ def show_answer_widget():
         )
         submit_btn = widgets.Button(
             description=submit_label,
-            button_style="danger",
+            button_style="primary",
             layout=widgets.Layout(width="170px", height="36px"),
             tooltip="Send your feedback to the AI.",
         )

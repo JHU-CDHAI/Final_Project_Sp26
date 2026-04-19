@@ -292,7 +292,7 @@ def show_stage1():
     # Save Config / Reset to Defaults buttons
     save_config_btn = widgets.Button(
         description="Save Config",
-        button_style="success",
+        button_style="primary",
         icon="check",
         layout=widgets.Layout(width="150px", margin="12px 0 0 0"),
     )
