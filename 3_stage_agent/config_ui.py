@@ -159,6 +159,10 @@ _DEFAULTS = {
     "max_topics_revision": 2,
 }
 
+_s1_query          = widgets.Textarea(
+    placeholder="Type your business question here, or edit my_question.txt directly…",
+    layout=widgets.Layout(width="560px", height="100px"),
+)
 _s1_model          = widgets.Dropdown(options=MODEL_OPTIONS, value=_DEFAULTS["model"], layout=_widget_layout)
 _s1_max_clarify    = widgets.BoundedIntText(value=_DEFAULTS["max_clarify_rounds"],  min=1, max=10, layout=_slider_layout)
 _s1_max_topics     = widgets.BoundedIntText(value=_DEFAULTS["max_research_topics"], min=1, max=5,  layout=_slider_layout)
@@ -182,15 +186,26 @@ def _labeled(label_text, w, hint=None):
     return row
 
 
+_s1_save_btn    = widgets.Button(
+    description="Save Question",
+    button_style="primary",
+    icon="save",
+    layout=widgets.Layout(width="160px", margin="6px 0 0 0"),
+)
+_s1_save_status = widgets.Output()
+
 _s1_form = widgets.VBox([
     widgets.HTML(
         '<p style="color:#000;font-weight:500;font-size:18px;margin:0 0 8px;">'
-        'Choose an AI model and configure the intake settings. '
-        'Your choices are saved automatically when you run Step 5.</p>'
-        '<p style="color:#555;font-size:14px;margin:0 0 12px;">'
-        'Your business question is read from <code>my_question.txt</code> — '
-        'edit that file directly in the file browser.</p>'
+        'Enter your business question and configure the intake settings.</p>'
+        '<p style="color:#555;font-size:13px;margin:0 0 4px;">'
+        'Your question is also saved to <code>my_question.txt</code> — '
+        'you can edit either the box below or the file directly. Both stay in sync.</p>'
     ),
+    widgets.HTML("<h3>Business Question</h3>"),
+    _s1_query,
+    _s1_save_btn,
+    _s1_save_status,
     widgets.HTML("<h3>Model</h3>"),
     _labeled("Intake model:", _s1_model),
     widgets.HTML("<h3>Settings</h3>"),
@@ -205,8 +220,24 @@ _s1_form = widgets.VBox([
 _status_banner = widgets.Output()
 
 
+def _save_question_to_file():
+    """Write current textarea value to my_question.txt."""
+    text = _s1_query.value.strip()
+    _question_path().parent.mkdir(parents=True, exist_ok=True)
+    _question_path().write_text(text, encoding="utf-8")
+    return text
+
+
 def show_stage1():
-    """Display config UI, pre-filling dropdowns from saved YAML if present."""
+    """Display config UI, pre-filling question and dropdowns from saved files."""
+    # Pre-fill question textarea from txt (strip comment lines)
+    qpath = _question_path()
+    if qpath.exists():
+        raw = qpath.read_text(encoding="utf-8")
+        lines = [l for l in raw.splitlines() if not l.strip().startswith("#")]
+        _s1_query.value = "\n".join(lines).strip()
+
+    # Pre-fill dropdowns from YAML
     saved = _load_yaml(_config_path())
     with _status_banner:
         _status_banner.clear_output()
@@ -225,6 +256,25 @@ def show_stage1():
                 "Using default settings — your choices will be saved when you run Step 5.</div>"
             ))
 
+    # Wire Save Question button
+    def _on_save(b):
+        text = _save_question_to_file()
+        with _s1_save_status:
+            _s1_save_status.clear_output()
+            if text:
+                display(HTML(
+                    "<span style='color:#388e3c;font-size:13px'>"
+                    f"✓ Saved to <code>{_question_path().name}</code></span>"
+                ))
+            else:
+                display(HTML(
+                    "<span style='color:#e53935;font-size:13px'>"
+                    "⚠ Question is empty — please type something first.</span>"
+                ))
+
+    _s1_save_btn.on_click(_on_save)
+
+    # Reset to Defaults button
     reset_btn = widgets.Button(
         description="Reset to Defaults",
         button_style="warning",
@@ -248,7 +298,7 @@ def show_stage1():
 
 
 def get_config_stage1() -> dict:
-    """Return config dict, save widget values to YAML, and read question from txt."""
+    """Return config dict, syncing textarea → txt and saving settings to YAML."""
     stage1_cfg = {
         "model":               _s1_model.value,
         "max_clarify_rounds":  _s1_max_clarify.value,
@@ -257,8 +307,24 @@ def get_config_stage1() -> dict:
     }
     _save_yaml(_config_path(), stage1_cfg)
 
+    # Sync: textarea is primary source → write to txt so file stays up to date
+    question = _save_question_to_file()
+
+    # If textarea is empty, fall back to reading the txt file directly
+    # (user may have edited the file without reloading the UI)
+    if not question:
+        question = read_question()  # raises ValueError with warning if still empty
+
+    display(HTML(f"""
+        <div style='border:2px solid #388e3c;padding:10px;border-radius:6px;
+                    background:#f1f8e9;margin:8px 0'>
+        <b style='color:#388e3c'>✓ Question confirmed:</b><br>
+        <span style='font-size:14px'>{question[:300]}{"…" if len(question) > 300 else ""}</span>
+        </div>
+    """))
+
     return {
-        "input_query":         read_question(),  # Design 2: read from txt file
+        "input_query":         question,
         "openrouter_base_url": "https://openrouter.ai/api/v1",
         "auto_approve":        False,
         "stage1_intake":       stage1_cfg,
