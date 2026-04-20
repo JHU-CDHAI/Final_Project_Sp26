@@ -52,18 +52,28 @@ def setup_stage1(repo_dir: str):
     return _cui
 
 
-def _run_graph(agent, lc_config, initial_state, output_dir, on_gate=None, get_feedback=None):
+def _run_graph(agent, lc_config, initial_state, output_dir,
+               on_gate=None, get_feedback=None, on_node=None):
     """Shared interrupt loop for all stages.
 
     on_gate:      optional callable(snapshot) called after each gate resume.
     get_feedback: optional callable(interrupt_text) -> str that replaces the
                   default display + input() pair (used for widget-based gates).
+    on_node:      optional callable(node_name, state_updates) fired after each
+                  node execution — enables live progress updates between gates.
     """
     report_export.start_log(output_dir)
 
+    def _stream(cmd):
+        """Run agent stream until next interrupt or completion, firing on_node per node."""
+        for chunk in agent.stream(cmd, lc_config, stream_mode="updates"):
+            node_name = next((k for k in chunk if not k.startswith("__")), None)
+            if on_node and node_name:
+                on_node(node_name, chunk.get(node_name, {}))
+
     try:
         t0 = time.time()
-        result = agent.invoke(initial_state, lc_config)
+        _stream(initial_state)
 
         gate_num = 0
         while True:
@@ -86,10 +96,12 @@ def _run_graph(agent, lc_config, initial_state, output_dir, on_gate=None, get_fe
                             display(HTML("<hr style='border:3px solid #2E75B6; margin:8px 0 16px 0'>"))
                             feedback = input("approve / or type feedback > ").strip() or "approved"
 
-                        result = agent.invoke(Command(resume=feedback), lc_config)
-                        if on_gate:
-                            on_gate(agent.get_state(lc_config))
+                        _stream(Command(resume=feedback))
 
+            if on_gate:
+                on_gate(agent.get_state(lc_config))
+
+        result = agent.get_state(lc_config).values
         elapsed = time.time() - t0
         return result, elapsed
 
@@ -321,7 +333,7 @@ def run_stage2(mod, config_dict: dict, *,
     _label = _widgets.HTML(
         value=(
             f"<b style='font-size:14px'>Stage 2 — 0 / {n} topics approved &nbsp;|&nbsp; "
-            f"Working on Topic 1: <em>{_first}</em></b>"
+            f"Searching for Topic 1: <em>{_first}</em></b>"
         )
     )
     _progress_box = _widgets.VBox(
@@ -333,28 +345,45 @@ def run_stage2(mod, config_dict: dict, *,
     )
     display(_progress_box)
 
-    def _on_gate(snapshot):
-        vals = snapshot.values
-        approved = len(vals.get("approved_topics", []))
-        topics   = vals.get("research_topics", research_topics)
-        next_idx = vals.get("current_topic_idx", 0)
+    # on_node: fires after each graph node completes — updates label with current phase
+    _NODE_PHASE = {
+        "research_and_propose": "Critic reviewing",
+        "topic_critic":         "Awaiting your review of",
+        "human_gate_3":         "Searching for",
+    }
+
+    def _on_node(node_name, _updates):
+        phase = _NODE_PHASE.get(node_name)
+        if not phase:
+            return
+        vals      = agent.get_state(lc_config).values
+        approved  = len(vals.get("approved_topics", []))
+        topic_idx = vals.get("current_topic_idx", 0)
         _bar.value = approved
-        if approved >= n:
-            _bar.bar_style = "success"
-            _label.value = (
-                f"<b style='font-size:14px;color:#388e3c'>"
-                f"✓ All {n} topics approved — finalizing…</b>"
-            )
-        elif next_idx < len(topics):
-            next_topic = topics[next_idx][:60]
+        if node_name == "human_gate_3":
+            if topic_idx < n:
+                nm = research_topics[topic_idx][:60]
+                _label.value = (
+                    f"<b style='font-size:14px'>Stage 2 — {approved} / {n} topics approved "
+                    f"&nbsp;|&nbsp; {phase} Topic {topic_idx + 1}: <em>{nm}</em></b>"
+                )
+            else:
+                _bar.bar_style = "success"
+                _label.value = (
+                    f"<b style='font-size:14px;color:#388e3c'>"
+                    f"✓ All {n} topics approved — finalizing…</b>"
+                )
+        else:
+            capped = min(topic_idx, n - 1)
+            nm = research_topics[capped][:60]
             _label.value = (
                 f"<b style='font-size:14px'>Stage 2 — {approved} / {n} topics approved "
-                f"&nbsp;|&nbsp; Working on Topic {next_idx + 1}: <em>{next_topic}</em></b>"
+                f"&nbsp;|&nbsp; {phase} Topic {capped + 1}: <em>{nm}</em></b>"
             )
-        else:
-            _label.value = (
-                f"<b style='font-size:14px'>Stage 2 — {approved} / {n} topics approved</b>"
-            )
+
+    def _on_gate(snapshot):
+        # Bar value is already kept current by _on_node; this is a safety sync.
+        _bar.value = len(snapshot.values.get("approved_topics", []))
 
     initial_state = {
         "research_topics": research_topics,
@@ -449,7 +478,7 @@ def run_stage2(mod, config_dict: dict, *,
 
     result, elapsed = _run_graph(
         agent, lc_config, initial_state, output_dir,
-        on_gate=_on_gate, get_feedback=_widget_gate,
+        on_gate=_on_gate, get_feedback=_widget_gate, on_node=_on_node,
     )
 
     # Final progress update
