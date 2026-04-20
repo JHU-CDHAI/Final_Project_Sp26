@@ -6,8 +6,8 @@ Pipeline:  intake → clarify_problem → [Gate 1: Problem Framing] → plan_res
 
 Two separate functions for two separate notebook cells:
 
-  Cell 5b:  stage1_runner.show_framing_widget()   — Problem Framing review
-  Cell 5c:  stage1_runner.show_topics_widget()    — Research Topics review
+  Step 5b:  stage1_runner.show_framing_widget()   — Problem Framing review
+  Step 5c:  stage1_runner.show_topics_widget()    — Research Topics review
 
 Each cell:
   - While active:   shows the gate question, a feedback textarea, and 3 buttons.
@@ -130,7 +130,7 @@ def _finish(result: dict):
 # ============================================================================
 
 def start_stage1(mod, config_dict: dict):
-    """Cell 5a. Builds the agent and runs to the first interrupt (Gate 1)."""
+    """Step 5a. Builds the agent and runs to the first interrupt (Gate 1)."""
     ts         = datetime.now().strftime("%Y%m%d_%H%M%S")
     output_dir = Path(ts)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -167,7 +167,7 @@ def start_stage1(mod, config_dict: dict):
             "<div style='border:2px solid #e65100;padding:10px 14px;border-radius:6px;"
             "background:#fff8e1;margin-top:12px;font-size:15px'>"
             "⬇ <b>The AI has framed your problem.</b> "
-            "Run <b>Cell 5b below</b> to review and respond.</div>"
+            "Run <b>Step 5b</b> below to review and respond.</div>"
         ))
     else:
         _finish(result)
@@ -225,7 +225,7 @@ def _do_restart():
         render_framing()
 
 # ============================================================================
-# Cell 5b — Problem Framing (Gate 1)
+# Step 5b — Problem Framing (Gate 1)
 # ============================================================================
 
 def show_framing_widget():
@@ -264,7 +264,7 @@ def show_framing_widget():
                     "✓ Problem Framing Approved</div>"
                     "<div style='color:#555;font-size:13px;margin-bottom:10px'>"
                     "This content will be saved to <code>output.md</code> once you "
-                    "approve the research topics in Cell 5c. "
+                    "approve the research topics in Step 5c. "
                     "Select the text below to copy it.</div>"
                     "<pre style='background:#fff;border:1px solid #c8e6c9;border-radius:4px;"
                     "padding:12px;font-size:13px;white-space:pre-wrap;word-wrap:break-word;"
@@ -370,7 +370,7 @@ def show_framing_widget():
         with out:
             display(HTML(
                 "<div style='border:2px solid #e53935;padding:10px;border-radius:6px;"
-                "background:#fff3f3'>⚠ Run Cell 5a (start_stage1) first.</div>"
+                "background:#fff3f3'>⚠ Run Step 5a first.</div>"
             ))
     elif _session.get("framing_approved"):
         _render_complete()
@@ -380,11 +380,11 @@ def show_framing_widget():
         with out:
             display(HTML(
                 "<div style='border:2px solid #e53935;padding:10px;border-radius:6px;"
-                "background:#fff3f3'>⚠ Run Cell 5a (start_stage1) first.</div>"
+                "background:#fff3f3'>⚠ Run Step 5a first.</div>"
             ))
 
 # ============================================================================
-# Cell 5c — Research Topics (Gate 2)
+# Step 5c — Research Topics (Gate 2)
 # ============================================================================
 
 def show_topics_widget():
@@ -521,7 +521,7 @@ def show_topics_widget():
         with out:
             display(HTML(
                 "<div style='border:2px solid #999;padding:10px;border-radius:6px;"
-                "background:#f5f5f5;color:#555'>Complete Cell 5b (Problem Framing) first.</div>"
+                "background:#f5f5f5;color:#555'>Complete Step 5b (Problem Framing) first.</div>"
             ))
     else:
         with out:

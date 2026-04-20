@@ -104,7 +104,7 @@ def _save_yaml(path: Path, data: dict):
 
 def create_question_file():
     """
-    Called during the setup cell (step 3).
+    Called during the Step 4 setup cell.
     Creates my_question.txt empty if it does not already exist.
     """
     path = _question_path()
@@ -116,7 +116,7 @@ def create_question_file():
                         background:#e3f2fd;margin:6px 0'>
             <b style='color:#1976d2'>📄 my_question.txt created</b><br>
             Open it in the file browser (left sidebar → folder icon), type your
-            business question, save the file, then re-run Step 5.<br>
+            business question, save the file, then re-run the check cell below.<br>
             <code style='font-size:12px'>{path}</code>
             </div>
         """))
@@ -158,7 +158,7 @@ def read_question() -> str:
     if not question:
         # Write a single reminder line — no "delete this" instruction
         path.write_text(
-            "# ⚠ Please enter your business question below this line, then re-run Step 5.\n\n"
+            "# ⚠ Please enter your business question below this line, then re-run the Step 4 check cell.\n\n"
         )
         display(HTML("""
             <div style='border:3px solid #e53935;padding:16px;border-radius:8px;
@@ -287,7 +287,7 @@ def show_stage1():
             display(HTML(
                 "<div style='border:2px solid #1976d2;padding:8px 12px;border-radius:6px;"
                 "background:#e3f2fd;margin-bottom:8px'>"
-                "Using default settings — your choices will be saved when you run Step 5.</div>"
+                "Using default settings — your choices will be saved when you run Step 5a.</div>"
             ))
 
     # Wire Save Question button
@@ -428,7 +428,7 @@ def get_config_stage1() -> dict:
             question = read_question()   # raises ValueError if still empty
             _s1_query.value = question   # sync textarea ← file
         except ValueError:
-            # Mirror the error into the config UI widget (Cell 8) so it appears
+            # Mirror the error into the config UI widget (Step 4) so it appears
             # right below the question box — not just in the agent start cell.
             with _s1_save_status:
                 _s1_save_status.clear_output()
@@ -436,7 +436,7 @@ def get_config_stage1() -> dict:
                     <div style='border:3px solid #e53935;padding:12px;border-radius:8px;
                                 background:#fff3f3;margin:4px 0'>
                     <b style='font-size:15px;color:#e53935'>⚠ No question found</b><br><br>
-                    Please enter and save your question in the Step 4 Setup cell, then re-run Cell 5a.
+                    Please enter and save your question in Step 4, then re-run Step 5a.
                     </div>
                 """))
             raise
