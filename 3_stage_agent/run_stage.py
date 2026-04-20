@@ -424,15 +424,29 @@ def run_stage2(mod, config_dict: dict, *,
             layout=_w.Layout(width="190px", height="36px"),
         )
 
+        _WAITING_CSS = (
+            "<style>"
+            "@keyframes s2-pulse{0%,100%{opacity:.35}50%{opacity:1}}"
+            ".s2-dot{display:inline-block;animation:s2-pulse 1.2s ease-in-out infinite}"
+            ".s2-dot:nth-child(2){animation-delay:.2s}"
+            ".s2-dot:nth-child(3){animation-delay:.4s}"
+            "</style>"
+        )
+
         def _on_approve(b):
             submit_btn.disabled = True
             approve_btn.disabled = True
             with gate_out:
                 gate_out.clear_output()
                 display(HTML(
-                    "<div style='border:2px solid #388e3c;padding:10px 14px;"
-                    "border-radius:6px;background:#f1f8e9'>"
-                    "<b style='color:#388e3c'>✓ Approved — working on next topic…</b>"
+                    _WAITING_CSS +
+                    "<div style='border:2px solid #a5d6a7;padding:10px 14px;"
+                    "border-radius:6px;background:#f1f8e9;opacity:0.85'>"
+                    "<b style='color:#388e3c'>✓ Approved</b>"
+                    " &nbsp;—&nbsp; generating next research proposal&nbsp;"
+                    "<span class='s2-dot'>.</span>"
+                    "<span class='s2-dot'>.</span>"
+                    "<span class='s2-dot'>.</span>"
                     "</div>"
                 ))
             result_holder[0] = "approved"
@@ -444,7 +458,16 @@ def run_stage2(mod, config_dict: dict, *,
             answer = feedback_area.value.strip()
             with gate_out:
                 gate_out.clear_output()
-                display(HTML("<i style='color:#888'>Sending feedback…</i>"))
+                display(HTML(
+                    _WAITING_CSS +
+                    "<div style='border:2px solid #90caf9;padding:10px 14px;"
+                    "border-radius:6px;background:#e3f2fd;opacity:0.85'>"
+                    "Sending feedback and revising&nbsp;"
+                    "<span class='s2-dot'>.</span>"
+                    "<span class='s2-dot'>.</span>"
+                    "<span class='s2-dot'>.</span>"
+                    "</div>"
+                ))
             result_holder[0] = answer
             event.set()
 
