@@ -111,22 +111,6 @@ def create_question_file():
     path.parent.mkdir(parents=True, exist_ok=True)
     if not path.exists():
         path.write_text("")
-        display(HTML(f"""
-            <div style='border:2px solid #1976d2;padding:12px;border-radius:6px;
-                        background:#e3f2fd;margin:6px 0'>
-            <b style='color:#1976d2'>📄 my_question.txt created</b><br>
-            Open it in the file browser (left sidebar → folder icon), type your
-            business question, save the file, then re-run the check cell below.<br>
-            <code style='font-size:12px'>{path}</code>
-            </div>
-        """))
-    else:
-        display(HTML(f"""
-            <div style='color:#555;font-size:13px;margin:4px 0'>
-            ✓ <code>my_question.txt</code> already exists at
-            <code>{path}</code>
-            </div>
-        """))
 
 
 def _is_instruction_line(line: str) -> bool:
@@ -185,9 +169,9 @@ def read_question() -> str:
 
 _DEFAULTS = {
     "model":               "openai/gpt-5.2",
-    "max_clarify_rounds":  5,
-    "max_research_topics": 2,
-    "max_topics_revision": 2,
+    "max_clarify_rounds":  100,
+    "max_research_topics": 5,
+    "max_topics_revision": 100,
 }
 
 _s1_query          = widgets.Textarea(
@@ -196,9 +180,9 @@ _s1_query          = widgets.Textarea(
 )
 _s1_initial_question: str = ""  # value pre-filled at show_stage1() time; used to detect file edits
 _s1_model          = widgets.Dropdown(options=MODEL_OPTIONS, value=_DEFAULTS["model"], layout=_widget_layout)
-_s1_max_clarify    = widgets.BoundedIntText(value=_DEFAULTS["max_clarify_rounds"],  min=1, max=10, layout=_slider_layout)
-_s1_max_topics     = widgets.BoundedIntText(value=_DEFAULTS["max_research_topics"], min=1, max=5,  layout=_slider_layout)
-_s1_max_topics_rev = widgets.BoundedIntText(value=_DEFAULTS["max_topics_revision"], min=1, max=5,  layout=_slider_layout)
+_s1_max_clarify    = widgets.IntText(value=_DEFAULTS["max_clarify_rounds"],  layout=_slider_layout)
+_s1_max_topics     = widgets.IntText(value=_DEFAULTS["max_research_topics"], layout=_slider_layout)
+_s1_max_topics_rev = widgets.IntText(value=_DEFAULTS["max_topics_revision"], layout=_slider_layout)
 
 
 def _apply_values(d: dict):
@@ -240,13 +224,6 @@ _s1_form = widgets.VBox([
     _s1_save_status,
     widgets.HTML("<h3>Model</h3>"),
     _labeled("Intake model:", _s1_model),
-    widgets.HTML("<h3>Settings</h3>"),
-    _labeled("Max clarify rounds:", _s1_max_clarify,
-             "How many times the agent can ask you clarifying questions"),
-    _labeled("Max research topics:", _s1_max_topics,
-             "Number of topics the agent will come up with to research on"),
-    _labeled("Max topic revisions:", _s1_max_topics_rev,
-             "How many times you can revise the research topic list"),
 ])
 
 _status_banner = widgets.Output()
@@ -273,22 +250,8 @@ def show_stage1():
 
     # Pre-fill dropdowns from YAML
     saved = _load_yaml(_config_path())
-    with _status_banner:
-        _status_banner.clear_output()
-        if saved:
-            _apply_values(saved)
-            display(HTML(
-                "<div style='border:2px solid #388e3c;padding:8px 12px;border-radius:6px;"
-                "background:#f1f8e9;margin-bottom:8px'>"
-                f"✓ Loaded your previous settings from "
-                f"<code>{_config_path().name}</code></div>"
-            ))
-        else:
-            display(HTML(
-                "<div style='border:2px solid #1976d2;padding:8px 12px;border-radius:6px;"
-                "background:#e3f2fd;margin-bottom:8px'>"
-                "Using default settings — your choices will be saved when you run Step 5a.</div>"
-            ))
+    if saved:
+        _apply_values(saved)
 
     # Wire Save Question button
     def _on_save(b):
@@ -360,7 +323,6 @@ def show_stage1():
     save_config_btn.on_click(_on_save_config)
     reset_btn.on_click(_on_reset)
     display(widgets.VBox([
-        _status_banner,
         _s1_form,
         widgets.HBox([save_config_btn, reset_btn]),
     ]))
