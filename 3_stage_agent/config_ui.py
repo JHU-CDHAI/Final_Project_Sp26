@@ -366,6 +366,35 @@ def show_stage1():
     ]))
 
 
+def check_question() -> bool:
+    """Show a warning if no question is saved; confirmation if one is ready. Returns True/False."""
+    qpath = _question_path()
+    raw = qpath.read_text(encoding="utf-8") if qpath.exists() else ""
+    lines = [l for l in raw.splitlines()
+             if not l.strip().startswith("#") and not _is_instruction_line(l)]
+    question = "\n".join(lines).strip()
+
+    if not question:
+        display(HTML("""
+            <div style='border:3px solid #e53935;padding:16px;border-radius:8px;
+                        background:#fff3f3;margin:8px 0'>
+            <b style='font-size:16px;color:#e53935'>&#9888; No question found</b><br><br>
+            Please enter and save your question in the Step 3 Setup cell above,
+            then re-run this cell.
+            </div>
+        """))
+        return False
+
+    display(HTML(
+        f"<div style='border:2px solid #388e3c;padding:10px;border-radius:6px;"
+        f"background:#f1f8e9;margin:8px 0'>"
+        f"<b style='color:#388e3c'>&#10003; Question ready:</b><br>"
+        f"<span style='font-size:14px'>{question[:300]}{'&hellip;' if len(question) > 300 else ''}</span>"
+        f"</div>"
+    ))
+    return True
+
+
 def get_config_stage1() -> dict:
     """Return config dict, syncing textarea → txt and saving settings to YAML."""
     stage1_cfg = {
