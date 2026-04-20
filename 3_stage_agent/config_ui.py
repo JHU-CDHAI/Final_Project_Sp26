@@ -18,6 +18,19 @@ import yaml
 import ipywidgets as widgets
 from IPython.display import display, HTML
 
+_FLASH_CSS = (
+    "<style>"
+    "@keyframes s1-sf{0%{background:#a5d6a7}100%{background:transparent}}"
+    "@keyframes s1-ef{0%{background:#ef9a9a}100%{background:transparent}}"
+    "@keyframes s1-df{0%{background:#a5d6a7}100%{background:#f1f8e9}}"
+    ".s1-sf{animation:s1-sf 1.4s ease-out forwards;display:inline-block;"
+    "border-radius:4px;padding:1px 6px}"
+    ".s1-ef{animation:s1-ef 1.4s ease-out forwards;display:inline-block;"
+    "border-radius:4px;padding:1px 6px}"
+    ".s1-df{animation:s1-df 1.4s ease-out forwards}"
+    "</style>"
+)
+
 # ============================================================================
 # Shared constants
 # ============================================================================
@@ -150,9 +163,8 @@ def read_question() -> str:
         display(HTML("""
             <div style='border:3px solid #e53935;padding:16px;border-radius:8px;
                         background:#fff3f3;margin:8px 0'>
-            <b style='font-size:18px;color:#e53935'>⚠ No question found in my_question.txt</b><br><br>
-            Open <code>my_question.txt</code> in the file browser (left sidebar),
-            type your business question, save the file, then re-run this cell.<br>
+            <b style='font-size:18px;color:#e53935'>⚠ No question found</b><br><br>
+            Please enter and save your question in the Step 3 Setup cell, then re-run this cell.<br>
             <b>The AI will not start until a question is provided.</b>
             </div>
         """))
@@ -286,13 +298,15 @@ def show_stage1():
             _s1_save_status.clear_output()
             if text:
                 display(HTML(
-                    "<span style='color:#388e3c;font-size:13px'>"
+                    _FLASH_CSS +
+                    "<span class='s1-sf' style='color:#388e3c;font-size:13px'>"
                     f"✓ Saved to <code>{_question_path().name}</code> "
                     f"<span style='color:#aaa'>({ts})</span></span>"
                 ))
             else:
                 display(HTML(
-                    "<span style='color:#e53935;font-size:13px'>"
+                    _FLASH_CSS +
+                    "<span class='s1-ef' style='color:#e53935;font-size:13px'>"
                     f"⚠ Question is empty — please type something first. "
                     f"<span style='color:#aaa'>({ts})</span></span>"
                 ))
@@ -325,8 +339,9 @@ def show_stage1():
         with _status_banner:
             _status_banner.clear_output()
             display(HTML(
-                "<div style='border:2px solid #388e3c;padding:8px 12px;border-radius:6px;"
-                "background:#f1f8e9;margin-bottom:8px'>"
+                _FLASH_CSS +
+                "<div class='s1-df' style='border:2px solid #388e3c;padding:8px 12px;"
+                "border-radius:6px;background:#f1f8e9;margin-bottom:8px'>"
                 f"✓ Settings saved to <code>{_config_path().name}</code> "
                 f"<span style='color:#aaa;font-size:12px'>({ts})</span></div>"
             ))
@@ -392,9 +407,7 @@ def get_config_stage1() -> dict:
                     <div style='border:3px solid #e53935;padding:12px;border-radius:8px;
                                 background:#fff3f3;margin:4px 0'>
                     <b style='font-size:15px;color:#e53935'>⚠ No question found</b><br><br>
-                    Type your question in the box above and click <b>Save Question</b>,
-                    or open <code>my_question.txt</code> in the sidebar and save it there.<br>
-                    Then re-run Cell 5a.
+                    Please enter and save your question in the Step 3 Setup cell, then re-run Cell 5a.
                     </div>
                 """))
             raise
