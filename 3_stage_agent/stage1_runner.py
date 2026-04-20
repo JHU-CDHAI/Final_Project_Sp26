@@ -243,11 +243,17 @@ def show_framing_widget():
     def _render_complete():
         framing     = _session.get("approved_framing", "")
         constraints = _session.get("approved_constraints", "")
-        constraints_html = (
-            f"<div style='margin-top:10px;font-size:13px'>"
-            f"<b>Constraints:</b> {constraints}</div>"
-            if constraints and constraints.lower() not in ("none", "")
-            else ""
+        user_query  = _session.get("config_dict", {}).get("input_query", "")
+
+        # Exact text that was written to output.md / passed to Stage 2
+        copy_text = f"## Business Question\n{user_query}"
+        copy_text += f"\n\n## Problem Framing\n{framing}"
+        if constraints and constraints.lower() not in ("none", ""):
+            copy_text += f"\n\n**Constraints:** {constraints}"
+
+        copy_area = widgets.Textarea(
+            value=copy_text,
+            layout=widgets.Layout(width="580px", height="180px"),
         )
         restart_btn = _make_restart_btn()
         restart_btn.on_click(lambda b: _do_restart())
@@ -255,18 +261,20 @@ def show_framing_widget():
         with out:
             out.clear_output()
             display(widgets.VBox([
-                widgets.HTML(f"""
-                    <div style='border:2px solid #388e3c;padding:16px;border-radius:8px;
-                                background:#f1f8e9;margin-bottom:10px'>
-                      <div style='font-weight:bold;color:#388e3c;font-size:16px;margin-bottom:10px'>
-                        ✓ Problem Framing Approved — saved to output.md</div>
-                      <div style='white-space:pre-wrap;font-size:14px;
-                                  border-left:3px solid #388e3c;padding-left:12px'>{framing}</div>
-                      {constraints_html}
-                    </div>
-                    <p style='color:#888;font-size:12px;margin:0 0 6px'>
-                      If you approved by accident, click Re-start to begin again.</p>
-                """),
+                widgets.HTML(
+                    "<div style='border:2px solid #388e3c;padding:12px 16px;border-radius:8px;"
+                    "background:#f1f8e9;margin-bottom:12px'>"
+                    "<div style='font-weight:bold;color:#388e3c;font-size:16px'>"
+                    "✓ Problem Framing Approved — saved to output.md</div></div>"
+                    "<p style='color:#555;font-size:13px;margin:4px 0 6px'>"
+                    "This is the exact research context that will be used in Stage 2. "
+                    "You can select and copy it for reference.</p>"
+                ),
+                copy_area,
+                widgets.HTML(
+                    "<p style='color:#888;font-size:12px;margin:8px 0 4px'>"
+                    "If you approved by accident, click Re-start to begin again.</p>"
+                ),
                 restart_btn,
             ]))
 
@@ -403,24 +411,34 @@ def show_topics_widget():
     # ── Completion card ──────────────────────────────────────────────────────
 
     def _render_complete():
-        topics = _session.get("approved_topics", [])
-        items  = "".join(f"<li style='margin:4px 0'>{t}</li>" for t in topics)
+        topics      = _session.get("approved_topics", [])
+        topics_text = "\n".join(f"{i}. {t}" for i, t in enumerate(topics, 1))
+        box_height  = f"{max(80, len(topics) * 30 + 20)}px"
+
+        copy_area = widgets.Textarea(
+            value=topics_text,
+            layout=widgets.Layout(width="580px", height=box_height),
+        )
         restart_btn = _make_restart_btn()
         restart_btn.on_click(lambda b: _do_restart())
 
         with out:
             out.clear_output()
             display(widgets.VBox([
-                widgets.HTML(f"""
-                    <div style='border:2px solid #1565c0;padding:16px;border-radius:8px;
-                                background:#e3f2fd;margin-bottom:10px'>
-                      <div style='font-weight:bold;color:#1565c0;font-size:16px;margin-bottom:10px'>
-                        ✓ Research Topics Approved ({len(topics)} topics) — saved to output.md</div>
-                      <ol style='margin:4px 0;padding-left:20px;font-size:14px'>{items}</ol>
-                    </div>
-                    <p style='color:#888;font-size:12px;margin:0 0 6px'>
-                      Stage 1 is complete. If you approved by accident, click Re-start to begin again.</p>
-                """),
+                widgets.HTML(
+                    f"<div style='border:2px solid #1565c0;padding:12px 16px;border-radius:8px;"
+                    f"background:#e3f2fd;margin-bottom:12px'>"
+                    f"<div style='font-weight:bold;color:#1565c0;font-size:16px'>"
+                    f"✓ Research Topics Approved ({len(topics)} topics) — saved to output.md</div></div>"
+                    f"<p style='color:#555;font-size:13px;margin:4px 0 6px'>"
+                    f"These are the exact research topics that will be used in Stage 2. "
+                    f"You can select and copy them for reference.</p>"
+                ),
+                copy_area,
+                widgets.HTML(
+                    "<p style='color:#888;font-size:12px;margin:8px 0 4px'>"
+                    "Stage 1 is complete. If you approved by accident, click Re-start to begin again.</p>"
+                ),
                 restart_btn,
             ]))
 
