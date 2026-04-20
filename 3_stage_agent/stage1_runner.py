@@ -241,20 +241,16 @@ def show_framing_widget():
     # ── Completion card ──────────────────────────────────────────────────────
 
     def _render_complete():
+        import html as _html
         framing     = _session.get("approved_framing", "")
         constraints = _session.get("approved_constraints", "")
         user_query  = _session.get("config_dict", {}).get("input_query", "")
 
-        # Exact text that was written to output.md / passed to Stage 2
         copy_text = f"## Business Question\n{user_query}"
         copy_text += f"\n\n## Problem Framing\n{framing}"
         if constraints and constraints.lower() not in ("none", ""):
             copy_text += f"\n\n**Constraints:** {constraints}"
 
-        copy_area = widgets.Textarea(
-            value=copy_text,
-            layout=widgets.Layout(width="580px", height="180px"),
-        )
         restart_btn = _make_restart_btn()
         restart_btn.on_click(lambda b: _do_restart())
 
@@ -263,18 +259,17 @@ def show_framing_widget():
             display(widgets.VBox([
                 widgets.HTML(
                     "<div style='border:2px solid #388e3c;padding:12px 16px;border-radius:8px;"
-                    "background:#f1f8e9;margin-bottom:12px'>"
-                    "<div style='font-weight:bold;color:#388e3c;font-size:16px'>"
+                    "background:#f1f8e9'>"
+                    "<div style='font-weight:bold;color:#388e3c;font-size:16px;margin-bottom:6px'>"
                     "✓ Problem Framing Approved</div>"
-                    "<div style='color:#555;font-size:13px;margin-top:4px'>"
-                    "This content will be saved to <code>output.md</code> once you approve the research topics in Cell 5c.</div>"
-                    "</div>"
-                    "<p style='color:#555;font-size:13px;margin:4px 0 6px'>"
-                    "This is the exact research context that will be used in Stage 2. "
-                    "You can select and copy it for reference.</p>"
-                ),
-                copy_area,
-                widgets.HTML(
+                    "<div style='color:#555;font-size:13px;margin-bottom:10px'>"
+                    "This content will be saved to <code>output.md</code> once you "
+                    "approve the research topics in Cell 5c. "
+                    "Select the text below to copy it.</div>"
+                    "<pre style='background:#fff;border:1px solid #c8e6c9;border-radius:4px;"
+                    "padding:12px;font-size:13px;white-space:pre-wrap;word-wrap:break-word;"
+                    "font-family:inherit;margin:0;width:100%;box-sizing:border-box'>"
+                    f"{_html.escape(copy_text)}</pre></div>"
                     "<p style='color:#888;font-size:12px;margin:8px 0 4px'>"
                     "If you approved by accident, click Re-start to begin again.</p>"
                 ),
@@ -292,7 +287,6 @@ def show_framing_widget():
             placeholder="Type feedback here, or leave blank and click Approve & Continue…",
             layout=widgets.Layout(width="560px", height="80px"),
         )
-        restart_btn = _make_restart_btn()
         submit_btn  = widgets.Button(
             description="Submit Feedback",
             button_style="primary",
@@ -307,7 +301,6 @@ def show_framing_widget():
         )
 
         def _disable_all():
-            restart_btn.disabled = True
             submit_btn.disabled  = True
             approve_btn.disabled = True
 
@@ -322,7 +315,6 @@ def show_framing_widget():
             if more and _session.get("gate_type") == "framing":
                 _render_gate()
             else:
-                # Blank submit acted as approve, or framing was accepted
                 _capture_framing_and_complete(more)
 
         def _on_approve(b):
@@ -333,13 +325,8 @@ def show_framing_widget():
             more = submit_answer("approved")
             _capture_framing_and_complete(more)
 
-        def _on_restart(b):
-            _disable_all()
-            _do_restart()
-
         submit_btn.on_click(_on_submit)
         approve_btn.on_click(_on_approve)
-        restart_btn.on_click(_on_restart)
 
         with out:
             out.clear_output()
@@ -358,7 +345,7 @@ def show_framing_widget():
                 """),
                 answer_input,
                 widgets.HBox(
-                    [restart_btn, submit_btn, approve_btn],
+                    [submit_btn, approve_btn],
                     layout=widgets.Layout(gap="10px", margin="6px 0 0 0"),
                 ),
             ]))
@@ -414,14 +401,10 @@ def show_topics_widget():
     # ── Completion card ──────────────────────────────────────────────────────
 
     def _render_complete():
+        import html as _html
         topics      = _session.get("approved_topics", [])
         topics_text = "\n".join(f"{i}. {t}" for i, t in enumerate(topics, 1))
-        box_height  = f"{max(80, len(topics) * 30 + 20)}px"
 
-        copy_area = widgets.Textarea(
-            value=topics_text,
-            layout=widgets.Layout(width="580px", height=box_height),
-        )
         restart_btn = _make_restart_btn()
         restart_btn.on_click(lambda b: _do_restart())
 
@@ -430,17 +413,18 @@ def show_topics_widget():
             display(widgets.VBox([
                 widgets.HTML(
                     f"<div style='border:2px solid #1565c0;padding:12px 16px;border-radius:8px;"
-                    f"background:#e3f2fd;margin-bottom:12px'>"
-                    f"<div style='font-weight:bold;color:#1565c0;font-size:16px'>"
-                    f"✓ Research Topics Approved ({len(topics)} topics) — saved to output.md</div></div>"
-                    f"<p style='color:#555;font-size:13px;margin:4px 0 6px'>"
+                    f"background:#e3f2fd'>"
+                    f"<div style='font-weight:bold;color:#1565c0;font-size:16px;margin-bottom:6px'>"
+                    f"✓ Research Topics Approved ({len(topics)} topics) — saved to output.md</div>"
+                    f"<div style='color:#555;font-size:13px;margin-bottom:10px'>"
                     f"These are the exact research topics that will be used in Stage 2. "
-                    f"You can select and copy them for reference.</p>"
-                ),
-                copy_area,
-                widgets.HTML(
-                    "<p style='color:#888;font-size:12px;margin:8px 0 4px'>"
-                    "Stage 1 is complete. If you approved by accident, click Re-start to begin again.</p>"
+                    f"Select the text below to copy it.</div>"
+                    f"<pre style='background:#fff;border:1px solid #bbdefb;border-radius:4px;"
+                    f"padding:12px;font-size:13px;white-space:pre-wrap;word-wrap:break-word;"
+                    f"font-family:inherit;margin:0;width:100%;box-sizing:border-box'>"
+                    f"{_html.escape(topics_text)}</pre></div>"
+                    f"<p style='color:#888;font-size:12px;margin:8px 0 4px'>"
+                    f"Stage 1 is complete. If you approved by accident, click Re-start to begin again.</p>"
                 ),
                 restart_btn,
             ]))
@@ -456,7 +440,6 @@ def show_topics_widget():
             placeholder="Type feedback to change topics, or leave blank and click Approve & End…",
             layout=widgets.Layout(width="560px", height="80px"),
         )
-        restart_btn = _make_restart_btn()
         submit_btn  = widgets.Button(
             description="Submit Feedback",
             button_style="primary",
@@ -471,7 +454,6 @@ def show_topics_widget():
         )
 
         def _disable_all():
-            restart_btn.disabled = True
             submit_btn.disabled  = True
             approve_btn.disabled = True
 
@@ -497,13 +479,8 @@ def show_topics_widget():
             if not more:
                 _render_complete()
 
-        def _on_restart(b):
-            _disable_all()
-            _do_restart()
-
         submit_btn.on_click(_on_submit)
         approve_btn.on_click(_on_approve)
-        restart_btn.on_click(_on_restart)
 
         with out:
             out.clear_output()
@@ -522,7 +499,7 @@ def show_topics_widget():
                 """),
                 answer_input,
                 widgets.HBox(
-                    [restart_btn, submit_btn, approve_btn],
+                    [submit_btn, approve_btn],
                     layout=widgets.Layout(gap="10px", margin="6px 0 0 0"),
                 ),
             ]))

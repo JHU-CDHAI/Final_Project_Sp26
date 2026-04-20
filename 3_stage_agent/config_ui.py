@@ -380,8 +380,24 @@ def get_config_stage1() -> dict:
     else:
         # Textarea empty or unchanged — file may have been edited directly.
         # read_question() already displays its own confirmation, so don't add another.
-        question = read_question()   # raises ValueError with warning if still empty
-        _s1_query.value = question   # sync textarea ← file
+        try:
+            question = read_question()   # raises ValueError if still empty
+            _s1_query.value = question   # sync textarea ← file
+        except ValueError:
+            # Mirror the error into the config UI widget (Cell 8) so it appears
+            # right below the question box — not just in the agent start cell.
+            with _s1_save_status:
+                _s1_save_status.clear_output()
+                display(HTML("""
+                    <div style='border:3px solid #e53935;padding:12px;border-radius:8px;
+                                background:#fff3f3;margin:4px 0'>
+                    <b style='font-size:15px;color:#e53935'>⚠ No question found</b><br><br>
+                    Type your question in the box above and click <b>Save Question</b>,
+                    or open <code>my_question.txt</code> in the sidebar and save it there.<br>
+                    Then re-run Cell 5a.
+                    </div>
+                """))
+            raise
 
     return {
         "input_query":         question,
