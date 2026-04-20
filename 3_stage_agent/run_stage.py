@@ -52,8 +52,12 @@ def setup_stage1(repo_dir: str):
     return _cui
 
 
-def _run_graph(agent, lc_config, initial_state, output_dir):
-    """Shared interrupt loop for all stages."""
+def _run_graph(agent, lc_config, initial_state, output_dir, on_gate=None):
+    """Shared interrupt loop for all stages.
+
+    on_gate: optional callable(snapshot) called after each gate resume,
+             so callers can update a progress widget using snapshot.values.
+    """
     report_export.start_log(output_dir)
 
     try:
@@ -79,6 +83,8 @@ def _run_graph(agent, lc_config, initial_state, output_dir):
                         if not feedback:
                             feedback = "approved"
                         result = agent.invoke(Command(resume=feedback), lc_config)
+                        if on_gate:
+                            on_gate(agent.get_state(lc_config))
 
         elapsed = time.time() - t0
         return result, elapsed
@@ -279,10 +285,13 @@ def run_stage2(mod, config_dict: dict, *,
     if not research_topics_text.strip():
         raise ValueError("Please paste your Stage 1 research topics.")
 
+    import ipywidgets as _widgets
+
     _s2_cfg = config_dict["stage2_research"]
     research_topics = _parse_topics(research_topics_text)
+    n = len(research_topics)
     print(f"Research context: {len(research_context.strip())} chars")
-    print(f"Topics ({len(research_topics)}):")
+    print(f"Topics ({n}):")
     for i, t in enumerate(research_topics, 1):
         print(f"  {i}. {t}")
 
@@ -299,6 +308,50 @@ def run_stage2(mod, config_dict: dict, *,
     mod.set_output_dir(output_dir)
     print(f"Output dir: {output_dir.resolve()}\n")
 
+    # ── Progress bar (displayed at top of cell output, updates in-place) ──
+    _first = research_topics[0][:60] if research_topics else ""
+    _bar = _widgets.IntProgress(
+        value=0, min=0, max=n, bar_style="info",
+        layout=_widgets.Layout(width="95%", height="22px"),
+    )
+    _label = _widgets.HTML(
+        value=(
+            f"<b style='font-size:14px'>Stage 2 — 0 / {n} topics approved &nbsp;|&nbsp; "
+            f"Working on Topic 1: <em>{_first}</em></b>"
+        )
+    )
+    _progress_box = _widgets.VBox(
+        [_label, _bar],
+        layout=_widgets.Layout(
+            border="2px solid #2E75B6", padding="10px 16px",
+            border_radius="6px", margin="0 0 12px 0", width="95%",
+        ),
+    )
+    display(_progress_box)
+
+    def _on_gate(snapshot):
+        vals = snapshot.values
+        approved = len(vals.get("approved_topics", []))
+        topics   = vals.get("research_topics", research_topics)
+        next_idx = vals.get("current_topic_idx", 0)
+        _bar.value = approved
+        if approved >= n:
+            _bar.bar_style = "success"
+            _label.value = (
+                f"<b style='font-size:14px;color:#388e3c'>"
+                f"✓ All {n} topics approved — finalizing…</b>"
+            )
+        elif next_idx < len(topics):
+            next_topic = topics[next_idx][:60]
+            _label.value = (
+                f"<b style='font-size:14px'>Stage 2 — {approved} / {n} topics approved "
+                f"&nbsp;|&nbsp; Working on Topic {next_idx + 1}: <em>{next_topic}</em></b>"
+            )
+        else:
+            _label.value = (
+                f"<b style='font-size:14px'>Stage 2 — {approved} / {n} topics approved</b>"
+            )
+
     initial_state = {
         "research_topics": research_topics,
         "research_brief": research_brief,
@@ -307,7 +360,17 @@ def run_stage2(mod, config_dict: dict, *,
         "approved_topics": [],
     }
 
-    result, elapsed = _run_graph(agent, lc_config, initial_state, output_dir)
+    result, elapsed = _run_graph(agent, lc_config, initial_state, output_dir, on_gate=_on_gate)
+
+    # Final progress update
+    approved_ct = len(result.get("approved_topics", []))
+    _bar.value = n
+    _bar.bar_style = "success"
+    _label.value = (
+        f"<b style='font-size:14px;color:#388e3c'>"
+        f"✓ Stage 2 Complete — {approved_ct} / {n} topics approved &nbsp;|&nbsp; "
+        f"Elapsed: {elapsed:.0f}s</b>"
+    )
 
     handoff_out = {
         "research_topics": research_topics,
