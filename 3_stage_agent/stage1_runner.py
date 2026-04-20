@@ -251,30 +251,22 @@ def show_framing_widget():
         if constraints and constraints.lower() not in ("none", ""):
             copy_text += f"\n\n**Constraints:** {constraints}"
 
-        restart_btn = _make_restart_btn()
-        restart_btn.on_click(lambda b: _do_restart())
-
         with out:
             out.clear_output()
-            display(widgets.VBox([
-                widgets.HTML(
-                    "<div style='border:2px solid #388e3c;padding:12px 16px;border-radius:8px;"
-                    "background:#f1f8e9'>"
-                    "<div style='font-weight:bold;color:#388e3c;font-size:16px;margin-bottom:6px'>"
-                    "✓ Problem Framing Approved</div>"
-                    "<div style='color:#555;font-size:13px;margin-bottom:10px'>"
-                    "This content will be saved to <code>output.md</code> once you "
-                    "approve the research topics in Step 5c. "
-                    "Select the text below to copy it.</div>"
-                    "<pre style='background:#fff;border:1px solid #c8e6c9;border-radius:4px;"
-                    "padding:12px;font-size:13px;white-space:pre-wrap;word-wrap:break-word;"
-                    "font-family:inherit;margin:0;width:100%;box-sizing:border-box'>"
-                    f"{_html.escape(copy_text)}</pre></div>"
-                    "<p style='color:#888;font-size:12px;margin:8px 0 4px'>"
-                    "If you approved by accident, click Re-start to begin again.</p>"
-                ),
-                restart_btn,
-            ]))
+            display(widgets.HTML(
+                "<div style='border:2px solid #388e3c;padding:12px 16px;border-radius:8px;"
+                "background:#f1f8e9'>"
+                "<div style='font-weight:bold;color:#388e3c;font-size:16px;margin-bottom:6px'>"
+                "✓ Problem Framing Approved</div>"
+                "<div style='color:#555;font-size:13px;margin-bottom:10px'>"
+                "This content will be saved to <code>output.md</code> once you "
+                "approve the research topics in Step 5c. "
+                "Select the text below to copy it.</div>"
+                "<pre style='background:#fff;border:1px solid #c8e6c9;border-radius:4px;"
+                "padding:12px;font-size:13px;white-space:pre-wrap;word-wrap:break-word;"
+                "font-family:inherit;margin:0;width:100%;box-sizing:border-box'>"
+                f"{_html.escape(copy_text)}</pre></div>"
+            ))
 
     _widget_refs["render_framing_complete"] = _render_complete
 
@@ -405,29 +397,21 @@ def show_topics_widget():
         topics      = _session.get("approved_topics", [])
         topics_text = "\n".join(f"{i}. {t}" for i, t in enumerate(topics, 1))
 
-        restart_btn = _make_restart_btn()
-        restart_btn.on_click(lambda b: _do_restart())
-
         with out:
             out.clear_output()
-            display(widgets.VBox([
-                widgets.HTML(
-                    f"<div style='border:2px solid #1565c0;padding:12px 16px;border-radius:8px;"
-                    f"background:#e3f2fd'>"
-                    f"<div style='font-weight:bold;color:#1565c0;font-size:16px;margin-bottom:6px'>"
-                    f"✓ Research Topics Approved ({len(topics)} topics) — saved to output.md</div>"
-                    f"<div style='color:#555;font-size:13px;margin-bottom:10px'>"
-                    f"These are the exact research topics that will be used in Stage 2. "
-                    f"Select the text below to copy it.</div>"
-                    f"<pre style='background:#fff;border:1px solid #bbdefb;border-radius:4px;"
-                    f"padding:12px;font-size:13px;white-space:pre-wrap;word-wrap:break-word;"
-                    f"font-family:inherit;margin:0;width:100%;box-sizing:border-box'>"
-                    f"{_html.escape(topics_text)}</pre></div>"
-                    f"<p style='color:#888;font-size:12px;margin:8px 0 4px'>"
-                    f"Stage 1 is complete. If you approved by accident, click Re-start to begin again.</p>"
-                ),
-                restart_btn,
-            ]))
+            display(widgets.HTML(
+                f"<div style='border:2px solid #1565c0;padding:12px 16px;border-radius:8px;"
+                f"background:#e3f2fd'>"
+                f"<div style='font-weight:bold;color:#1565c0;font-size:16px;margin-bottom:6px'>"
+                f"✓ Research Topics Approved ({len(topics)} topics) — saved to output.md</div>"
+                f"<div style='color:#555;font-size:13px;margin-bottom:10px'>"
+                f"These are the exact research topics that will be used in Stage 2. "
+                f"Select the text below to copy it.</div>"
+                f"<pre style='background:#fff;border:1px solid #bbdefb;border-radius:4px;"
+                f"padding:12px;font-size:13px;white-space:pre-wrap;word-wrap:break-word;"
+                f"font-family:inherit;margin:0;width:100%;box-sizing:border-box'>"
+                f"{_html.escape(topics_text)}</pre></div>"
+            ))
 
     _widget_refs["render_topics_complete"] = _render_complete
 
