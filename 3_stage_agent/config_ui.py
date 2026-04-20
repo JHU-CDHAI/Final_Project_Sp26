@@ -457,7 +457,7 @@ _s2_context_area = widgets.Textarea(
         "...\n\n"
         "**Constraints:** ..."
     ),
-    layout=widgets.Layout(width="98%", height="200px"),
+    layout=widgets.Layout(width="90%", height="200px"),
 )
 _s2_topics_area = widgets.Textarea(
     placeholder=(
@@ -466,7 +466,7 @@ _s2_topics_area = widgets.Textarea(
         "2. ...\n"
         "3. ..."
     ),
-    layout=widgets.Layout(width="98%", height="140px"),
+    layout=widgets.Layout(width="90%", height="140px"),
 )
 _s2_context_save_status = widgets.Output()
 _s2_topics_save_status  = widgets.Output()
