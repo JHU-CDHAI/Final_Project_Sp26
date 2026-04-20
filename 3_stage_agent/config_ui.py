@@ -450,26 +450,21 @@ def get_config_stage1() -> dict:
 
 _s2_context_area = widgets.Textarea(
     placeholder=(
+        "Paste your research context here (from Stage 1 output)…\n\n"
         "## Business Question\n"
-        "How do I start a business in Sweden?\n\n"
+        "...\n\n"
         "## Problem Framing\n"
-        "The client seeks guidance on how to start a business in Sweden, including\n"
-        "understanding legal requirements, market conditions, and practical steps\n"
-        "for business set-up. The goal is to ensure compliance with Sweden's\n"
-        "regulatory framework while identifying viable business opportunities.\n\n"
-        "**Constraints:** Key constraints include navigating Swedish legal\n"
-        "requirements, availability of start-up capital, and understanding\n"
-        "local market dynamics and competition."
+        "...\n\n"
+        "**Constraints:** ..."
     ),
     layout=widgets.Layout(width="100%", height="200px"),
 )
 _s2_topics_area = widgets.Textarea(
     placeholder=(
-        "1. Market entry analysis and competitive landscape\n"
-        "2. Legal and regulatory requirements for business registration\n"
-        "3. Funding options and startup capital sources\n"
-        "4. Local market dynamics and customer segments\n"
-        "5. Business compliance and operational setup"
+        "Paste your research topics here (one per line, or numbered)…\n\n"
+        "1. ...\n"
+        "2. ...\n"
+        "3. ..."
     ),
     layout=widgets.Layout(width="100%", height="140px"),
 )
