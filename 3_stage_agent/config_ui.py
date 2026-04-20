@@ -164,7 +164,7 @@ def read_question() -> str:
             <div style='border:3px solid #e53935;padding:16px;border-radius:8px;
                         background:#fff3f3;margin:8px 0'>
             <b style='font-size:18px;color:#e53935'>⚠ No question found</b><br><br>
-            Please enter and save your question in the Step 3 Setup cell, then re-run this cell.<br>
+            Please enter and save your question in the Step 4 Setup cell, then re-run this cell.<br>
             <b>The AI will not start until a question is provided.</b>
             </div>
         """))
@@ -379,7 +379,7 @@ def check_question() -> bool:
             <div style='border:3px solid #e53935;padding:16px;border-radius:8px;
                         background:#fff3f3;margin:8px 0'>
             <b style='font-size:16px;color:#e53935'>&#9888; No question found</b><br><br>
-            Please enter and save your question in the Step 3 Setup cell above,
+            Please enter and save your question in the Step 4 Setup cell above,
             then re-run this cell.
             </div>
         """))
@@ -436,7 +436,7 @@ def get_config_stage1() -> dict:
                     <div style='border:3px solid #e53935;padding:12px;border-radius:8px;
                                 background:#fff3f3;margin:4px 0'>
                     <b style='font-size:15px;color:#e53935'>⚠ No question found</b><br><br>
-                    Please enter and save your question in the Step 3 Setup cell, then re-run Cell 5a.
+                    Please enter and save your question in the Step 4 Setup cell, then re-run Cell 5a.
                     </div>
                 """))
             raise
