@@ -303,6 +303,7 @@ def show_stage1():
                     f"✓ Saved to <code>{_question_path().name}</code> "
                     f"<span style='color:#aaa'>({ts})</span></span>"
                 ))
+                check_question()
             else:
                 display(HTML(
                     _FLASH_CSS +
