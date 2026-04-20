@@ -303,7 +303,6 @@ def show_stage1():
                     f"✓ Saved to <code>{_question_path().name}</code> "
                     f"<span style='color:#aaa'>({ts})</span></span>"
                 ))
-                check_question()
             else:
                 display(HTML(
                     _FLASH_CSS +
@@ -384,7 +383,7 @@ def check_question() -> bool:
             then re-run this cell.
             </div>
         """))
-        return False
+        raise RuntimeError("No question found — please save your question in Step 4 first.")
 
     display(HTML(
         f"<div style='border:2px solid #388e3c;padding:10px;border-radius:6px;"
