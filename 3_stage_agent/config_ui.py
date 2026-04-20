@@ -80,6 +80,12 @@ def _constraints_path() -> Path:
 def _topics_path() -> Path:
     return _project_dir() / "my_topics.txt"
 
+def _research_context_path() -> Path:
+    return _project_dir() / "my_research_context.txt"
+
+def _research_topics_path() -> Path:
+    return _project_dir() / "my_research_topics.txt"
+
 # ============================================================================
 # Design 1 — YAML helpers
 # ============================================================================
@@ -111,6 +117,14 @@ def create_question_file():
     path.parent.mkdir(parents=True, exist_ok=True)
     if not path.exists():
         path.write_text("")
+
+
+def create_stage2_files():
+    """Create my_research_context.txt and my_research_topics.txt if they don't exist."""
+    for p in [_research_context_path(), _research_topics_path()]:
+        p.parent.mkdir(parents=True, exist_ok=True)
+        if not p.exists():
+            p.write_text("")
 
 
 def _is_instruction_line(line: str) -> bool:
@@ -425,131 +439,142 @@ def get_config_stage1() -> dict:
 
 
 # ============================================================================
-# Stage 2 — load Stage 1 output from handoff.json
+# Stage 2 — Research Context & Topics text-file input
 # ============================================================================
 
-import json as _json
-
-_s2_loaded: dict = {}  # holds parsed handoff data after clicking Load
-
-
-def _stage1_output_dir() -> Path:
-    return _project_dir() / "stage1_intake"
-
-
-def _latest_handoff() -> "Path | None":
-    out_dir = _stage1_output_dir()
-    if not out_dir.exists():
-        return None
-    runs = sorted(
-        [d for d in out_dir.iterdir() if d.is_dir() and (d / "handoff.json").exists()],
-        key=lambda d: d.name,
-        reverse=True,
-    )
-    return runs[0] / "handoff.json" if runs else None
-
-
-_s2_path_widget = widgets.Text(
-    value="",
-    placeholder="Auto-detected, or paste path to your Stage 1 output folder",
-    layout=widgets.Layout(width="95%"),
+_s2_context_area = widgets.Textarea(
+    placeholder="Paste your research context here (from Stage 1 output)…",
+    layout=widgets.Layout(width="560px", height="140px"),
 )
-_s2_load_status = widgets.Output()
+_s2_topics_area = widgets.Textarea(
+    placeholder="Paste your research topics here (one per line, or numbered)…",
+    layout=widgets.Layout(width="560px", height="120px"),
+)
+_s2_context_save_status = widgets.Output()
+_s2_topics_save_status  = widgets.Output()
 
-
-def _on_load(b):
-    global _s2_loaded
-    with _s2_load_status:
-        _s2_load_status.clear_output()
-        raw_path = _s2_path_widget.value.strip()
-        if raw_path:
-            candidate = Path(raw_path)
-            if candidate.is_file() and candidate.name == "handoff.json":
-                handoff_path = candidate
-            elif (candidate / "handoff.json").exists():
-                handoff_path = candidate / "handoff.json"
-            else:
-                display(HTML(
-                    f"<div style='border:2px solid #d32f2f;padding:10px;border-radius:6px;"
-                    f"background:#fff3f3'>❌ No <code>handoff.json</code> found at:"
-                    f"<br><code>{raw_path}</code></div>"
-                ))
-                return
-        else:
-            handoff_path = _latest_handoff()
-            if not handoff_path:
-                display(HTML(
-                    f"<div style='border:2px solid #d32f2f;padding:10px;border-radius:6px;"
-                    f"background:#fff3f3'>"
-                    f"❌ No Stage 1 output found in <code>{_stage1_output_dir()}</code>.<br>"
-                    f"Run Stage 1 first, or paste the path to your output folder above.</div>"
-                ))
-                return
-
-        try:
-            data = _json.loads(handoff_path.read_text(encoding="utf-8"))
-        except Exception as exc:
-            display(HTML(
-                f"<div style='color:#d32f2f'>❌ Failed to read <code>{handoff_path}</code>: {exc}</div>"
-            ))
-            return
-
-        _s2_loaded = data
-        _s2_path_widget.value = str(handoff_path.parent)
-        topics = data.get("research_topics", [])
-        display(HTML(
-            "<div style='border:2px solid #388e3c;padding:12px;border-radius:6px;background:#f1f8e9'>"
-            f"<b style='color:#388e3c'>✓ Loaded from:</b> <code>{handoff_path}</code><br><br>"
-            f"<b>Business Question:</b> {data.get('user_query', '')[:300]}<br><br>"
-            f"<b>Research Topics ({len(topics)}):</b><ol>"
-            + "".join(f"<li>{t}</li>" for t in topics)
-            + "</ol></div>"
-        ))
-
-
-_s2_load_btn = widgets.Button(
-    description="Load Stage 1 Output",
+_s2_context_save_btn = widgets.Button(
+    description="Save Research Context",
     button_style="primary",
-    icon="download",
-    layout=widgets.Layout(width="200px", margin="8px 0"),
+    icon="save",
+    layout=widgets.Layout(width="210px", margin="6px 0 0 0"),
 )
-_s2_load_btn.on_click(_on_load)
+_s2_topics_save_btn = widgets.Button(
+    description="Save Research Topics",
+    button_style="primary",
+    icon="save",
+    layout=widgets.Layout(width="210px", margin="6px 0 0 0"),
+)
 
 _s2_input_form = widgets.VBox([
     widgets.HTML(
-        '<b style="font-size:18px;">Load Stage 1 Output</b>'
-        '<p style="color:#555;margin:4px 0 8px;">'
-        'Click <b>Load Stage 1 Output</b> to auto-detect your latest Stage 1 run, '
-        'or paste the path to a specific Stage 1 output folder above first.</p>'
+        '<p style="color:#000;font-weight:500;font-size:18px;margin:0 0 8px;">'
+        'Enter your Stage 1 research output below.</p>'
+        '<p style="color:#555;font-size:13px;margin:0 0 4px;">'
+        'Your inputs are saved to <code>my_research_context.txt</code> and '
+        '<code>my_research_topics.txt</code> — you can edit either the boxes below '
+        'or the files directly. Both stay in sync.</p>'
     ),
-    _s2_path_widget,
-    _s2_load_btn,
-    _s2_load_status,
+    widgets.HTML("<h3>Research Context</h3>"),
+    _s2_context_area,
+    _s2_context_save_btn,
+    _s2_context_save_status,
+    widgets.HTML("<h3>Research Topics</h3>"),
+    _s2_topics_area,
+    _s2_topics_save_btn,
+    _s2_topics_save_status,
 ])
 
 
 def show_stage2_input():
-    latest = _latest_handoff()
-    if latest:
-        _s2_path_widget.value = str(latest.parent)
+    """Display Stage 2 input form, pre-filling textareas from saved txt files."""
+    create_stage2_files()
+
+    cp = _research_context_path()
+    if cp.exists():
+        raw = cp.read_text(encoding="utf-8")
+        lines = [l for l in raw.splitlines() if not l.strip().startswith("#")]
+        _s2_context_area.value = "\n".join(lines).strip()
+
+    tp = _research_topics_path()
+    if tp.exists():
+        raw = tp.read_text(encoding="utf-8")
+        lines = [l for l in raw.splitlines() if not l.strip().startswith("#")]
+        _s2_topics_area.value = "\n".join(lines).strip()
+
+    def _on_save_context(b):
+        text = _s2_context_area.value.strip()
+        _research_context_path().write_text(text, encoding="utf-8")
+        ts = datetime.now().strftime("%H:%M:%S")
+        with _s2_context_save_status:
+            _s2_context_save_status.clear_output()
+            if text:
+                display(HTML(
+                    _FLASH_CSS +
+                    "<span class='s1-sf' style='color:#388e3c;font-size:13px'>"
+                    f"✓ Saved to <code>{_research_context_path().name}</code> "
+                    f"<span style='color:#aaa'>({ts})</span></span>"
+                ))
+            else:
+                display(HTML(
+                    _FLASH_CSS +
+                    "<span class='s1-ef' style='color:#e53935;font-size:13px'>"
+                    f"⚠ Research context is empty — please paste something first. "
+                    f"<span style='color:#aaa'>({ts})</span></span>"
+                ))
+
+    def _on_save_topics(b):
+        text = _s2_topics_area.value.strip()
+        _research_topics_path().write_text(text, encoding="utf-8")
+        ts = datetime.now().strftime("%H:%M:%S")
+        with _s2_topics_save_status:
+            _s2_topics_save_status.clear_output()
+            if text:
+                display(HTML(
+                    _FLASH_CSS +
+                    "<span class='s1-sf' style='color:#388e3c;font-size:13px'>"
+                    f"✓ Saved to <code>{_research_topics_path().name}</code> "
+                    f"<span style='color:#aaa'>({ts})</span></span>"
+                ))
+            else:
+                display(HTML(
+                    _FLASH_CSS +
+                    "<span class='s1-ef' style='color:#e53935;font-size:13px'>"
+                    f"⚠ Research topics are empty — please paste something first. "
+                    f"<span style='color:#aaa'>({ts})</span></span>"
+                ))
+
+    _s2_context_save_btn.on_click(_on_save_context)
+    _s2_topics_save_btn.on_click(_on_save_topics)
     display(_s2_input_form)
 
 
 def get_stage1_output() -> dict:
-    if not _s2_loaded:
+    """Return research context and topics, reading from textareas (with txt-file fallback)."""
+    context = _s2_context_area.value.strip()
+    if not context:
+        cp = _research_context_path()
+        if cp.exists():
+            context = cp.read_text(encoding="utf-8").strip()
+
+    topics_text = _s2_topics_area.value.strip()
+    if not topics_text:
+        tp = _research_topics_path()
+        if tp.exists():
+            topics_text = tp.read_text(encoding="utf-8").strip()
+
+    if not context:
         raise ValueError(
-            "No Stage 1 output loaded — run step 4 and click 'Load Stage 1 Output' first."
+            "No research context found — enter and save it in Step 4 first."
         )
-    topics: list = _s2_loaded.get("research_topics", [])
-    research_topics_text = "\n".join(f"{i + 1}. {t}" for i, t in enumerate(topics))
-    research_context = (
-        f"## Business Question\n{_s2_loaded.get('user_query', '')}\n\n"
-        f"## Problem Framing\n{_s2_loaded.get('problem_framing', '')}\n\n"
-        f"**Constraints:** {_s2_loaded.get('constraints_noted', '')}"
-    )
+    if not topics_text:
+        raise ValueError(
+            "No research topics found — enter and save them in Step 4 first."
+        )
+
     return {
-        "research_context":     research_context,
-        "research_topics_text": research_topics_text,
+        "research_context":     context,
+        "research_topics_text": topics_text,
     }
 
 
@@ -563,8 +588,6 @@ _s2_form = widgets.VBox([
     widgets.HTML(
         '<p style="color:#000;font-weight:500;font-size:18px;margin:0 0 8px;">'
         'Choose AI models and settings for the research &amp; debate phase.</p>'
-        '<p style="color:#d32f2f;font-weight:600;font-size:18px;margin:0 0 8px;">'
-        'Warning: Re-running this cell will reset to defaults.</p>'
     ),
     widgets.HTML("<h3>Models</h3>"),
     _labeled("Researcher:", _s2_model_researcher),
@@ -619,8 +642,6 @@ _s3_form = widgets.VBox([
     widgets.HTML(
         '<p style="color:#000;font-weight:500;font-size:18px;margin:0 0 8px;">'
         'Choose the synthesizer model and settings.</p>'
-        '<p style="color:#d32f2f;font-weight:600;font-size:18px;margin:0 0 8px;">'
-        'Warning: Re-running this cell will reset to defaults.</p>'
     ),
     widgets.HTML("<h3>Model</h3>"),
     _labeled("Synthesizer:", _s3_model),
