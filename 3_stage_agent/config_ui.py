@@ -290,6 +290,8 @@ def show_stage1():
         layout=widgets.Layout(width="180px", margin="12px 0 0 6px"),
     )
 
+    config_save_status = widgets.Output()
+
     def _on_save_config(b):
         cfg = {
             "model":               _s1_model.value,
@@ -299,21 +301,20 @@ def show_stage1():
         }
         _save_yaml(_config_path(), cfg)
         ts = datetime.now().strftime("%H:%M:%S")
-        with _status_banner:
-            _status_banner.clear_output()
+        with config_save_status:
+            config_save_status.clear_output()
             display(HTML(
                 _FLASH_CSS +
-                "<div class='s1-df' style='border:2px solid #388e3c;padding:8px 12px;"
-                "border-radius:6px;background:#f1f8e9;margin-bottom:8px'>"
-                f"✓ Settings saved to <code>{_config_path().name}</code> "
-                f"<span style='color:#aaa;font-size:12px'>({ts})</span></div>"
+                "<span class='s1-sf' style='color:#388e3c;font-size:13px'>"
+                f"✓ Saved config "
+                f"<span style='color:#aaa'>({ts})</span></span>"
             ))
 
     def _on_reset(b):
         _config_path().unlink(missing_ok=True)
         _apply_values(_DEFAULTS)
-        with _status_banner:
-            _status_banner.clear_output()
+        with config_save_status:
+            config_save_status.clear_output()
             display(HTML(
                 "<div style='border:2px solid #f57c00;padding:8px 12px;border-radius:6px;"
                 "background:#fff8e1;margin-bottom:8px'>"
@@ -325,6 +326,7 @@ def show_stage1():
     display(widgets.VBox([
         _s1_form,
         widgets.HBox([save_config_btn, reset_btn]),
+        config_save_status,
     ]))
 
 
