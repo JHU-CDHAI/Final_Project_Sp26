@@ -345,6 +345,42 @@ def run_stage2(mod, config_dict: dict, *,
     )
     display(_progress_box)
 
+    # Shared animation CSS reused by gate cards and placeholder slots
+    import threading
+    import html as _html
+    import ipywidgets as _w
+
+    _SLOT_CSS = (
+        "<style>"
+        "@keyframes s2-pulse{0%,100%{opacity:.35}50%{opacity:1}}"
+        ".s2-dot{display:inline-block;animation:s2-pulse 1.2s ease-in-out infinite}"
+        ".s2-dot:nth-child(2){animation-delay:.2s}"
+        ".s2-dot:nth-child(3){animation-delay:.4s}"
+        "</style>"
+    )
+    _SLOT_HTML = (
+        _SLOT_CSS +
+        "<div style='border:2px solid #90caf9;padding:10px 14px;"
+        "border-radius:6px;background:#e3f2fd;color:#1565c0;"
+        "font-size:14px;margin:6px 0'>"
+        "Preparing research proposal&nbsp;"
+        "<span class='s2-dot'>.</span>"
+        "<span class='s2-dot'>.</span>"
+        "<span class='s2-dot'>.</span>"
+        "</div>"
+    )
+
+    _current_slot: list = [None]
+
+    def _new_slot():
+        slot = _w.Output()
+        display(slot)
+        with slot:
+            display(HTML(_SLOT_HTML))
+        _current_slot[0] = slot
+
+    _new_slot()  # placeholder for first research proposal
+
     # on_node: fires after each graph node completes — updates label with current phase
     _NODE_PHASE = {
         "research_and_propose": "Critic reviewing",
@@ -394,9 +430,6 @@ def run_stage2(mod, config_dict: dict, *,
     }
 
     # ── Widget gate (replaces input() with button-based UI) ──────────────────
-    import threading
-    import html as _html
-    import ipywidgets as _w
 
     def _widget_gate(interrupt_text: str) -> str:
         # Strip the instruction footer ("---\n- Press Enter…") since buttons replace it
@@ -406,8 +439,7 @@ def run_stage2(mod, config_dict: dict, *,
 
         event = threading.Event()
         result_holder = ["approved"]
-        gate_out = _w.Output()
-        display(gate_out)
+        gate_out = _current_slot[0]  # reuse the pre-created placeholder slot
 
         feedback_area = _w.Textarea(
             placeholder="Type feedback here, or leave blank and click Approve…",
@@ -424,22 +456,13 @@ def run_stage2(mod, config_dict: dict, *,
             layout=_w.Layout(width="190px", height="36px"),
         )
 
-        _WAITING_CSS = (
-            "<style>"
-            "@keyframes s2-pulse{0%,100%{opacity:.35}50%{opacity:1}}"
-            ".s2-dot{display:inline-block;animation:s2-pulse 1.2s ease-in-out infinite}"
-            ".s2-dot:nth-child(2){animation-delay:.2s}"
-            ".s2-dot:nth-child(3){animation-delay:.4s}"
-            "</style>"
-        )
-
         def _on_approve(b):
             submit_btn.disabled = True
             approve_btn.disabled = True
             with gate_out:
-                gate_out.clear_output()
+                gate_out.clear_output(wait=True)
                 display(HTML(
-                    _WAITING_CSS +
+                    _SLOT_CSS +
                     "<div style='border:2px solid #a5d6a7;padding:10px 14px;"
                     "border-radius:6px;background:#f1f8e9;opacity:0.85'>"
                     "<b style='color:#388e3c'>✓ Approved</b>"
@@ -449,6 +472,7 @@ def run_stage2(mod, config_dict: dict, *,
                     "<span class='s2-dot'>.</span>"
                     "</div>"
                 ))
+            _new_slot()  # immediately show placeholder for the next topic
             result_holder[0] = "approved"
             event.set()
 
@@ -457,9 +481,9 @@ def run_stage2(mod, config_dict: dict, *,
             approve_btn.disabled = True
             answer = feedback_area.value.strip()
             with gate_out:
-                gate_out.clear_output()
+                gate_out.clear_output(wait=True)
                 display(HTML(
-                    _WAITING_CSS +
+                    _SLOT_CSS +
                     "<div style='border:2px solid #90caf9;padding:10px 14px;"
                     "border-radius:6px;background:#e3f2fd;opacity:0.85'>"
                     "Sending feedback and revising&nbsp;"
@@ -468,6 +492,7 @@ def run_stage2(mod, config_dict: dict, *,
                     "<span class='s2-dot'>.</span>"
                     "</div>"
                 ))
+            _new_slot()  # immediately show placeholder for the revised proposal
             result_holder[0] = answer
             event.set()
 
@@ -476,6 +501,7 @@ def run_stage2(mod, config_dict: dict, *,
 
         escaped = _html.escape(interrupt_text)
         with gate_out:
+            gate_out.clear_output(wait=True)  # replace "..." placeholder with gate content
             display(_w.VBox([
                 _w.HTML(
                     "<div style='border:3px solid #1565c0;padding:16px;border-radius:8px;"
@@ -503,6 +529,10 @@ def run_stage2(mod, config_dict: dict, *,
         agent, lc_config, initial_state, output_dir,
         on_gate=_on_gate, get_feedback=_widget_gate, on_node=_on_node,
     )
+
+    # Clear the last placeholder slot (no more topics coming)
+    if _current_slot[0] is not None:
+        _current_slot[0].clear_output()
 
     # Final progress update
     approved_ct = len(result.get("approved_topics", []))
