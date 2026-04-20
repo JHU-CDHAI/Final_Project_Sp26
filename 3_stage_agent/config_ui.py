@@ -61,6 +61,12 @@ def _config_path() -> Path:
 def _question_path() -> Path:
     return _project_dir() / "my_question.txt"
 
+def _constraints_path() -> Path:
+    return _project_dir() / "my_constraints.txt"
+
+def _topics_path() -> Path:
+    return _project_dir() / "my_topics.txt"
+
 # ============================================================================
 # Design 1 — YAML helpers
 # ============================================================================
@@ -361,21 +367,21 @@ def get_config_stage1() -> dict:
     # → read from file without overwriting it first.
     textarea_val = _s1_query.value.strip()
     if textarea_val and textarea_val != _s1_initial_question:
-        # User typed something new in the textarea
+        # User typed something new in the textarea — show confirmation here
         question = textarea_val
         _save_question_to_file()
+        display(HTML(f"""
+            <div style='border:2px solid #388e3c;padding:10px;border-radius:6px;
+                        background:#f1f8e9;margin:8px 0'>
+            <b style='color:#388e3c'>✓ Question confirmed:</b><br>
+            <span style='font-size:14px'>{question[:300]}{"…" if len(question) > 300 else ""}</span>
+            </div>
+        """))
     else:
-        # Textarea empty or unchanged — file may have been edited directly
-        question = read_question()       # raises ValueError with warning if still empty
-        _s1_query.value = question       # sync textarea ← file so they stay in sync
-
-    display(HTML(f"""
-        <div style='border:2px solid #388e3c;padding:10px;border-radius:6px;
-                    background:#f1f8e9;margin:8px 0'>
-        <b style='color:#388e3c'>✓ Question confirmed:</b><br>
-        <span style='font-size:14px'>{question[:300]}{"…" if len(question) > 300 else ""}</span>
-        </div>
-    """))
+        # Textarea empty or unchanged — file may have been edited directly.
+        # read_question() already displays its own confirmation, so don't add another.
+        question = read_question()   # raises ValueError with warning if still empty
+        _s1_query.value = question   # sync textarea ← file
 
     return {
         "input_query":         question,
