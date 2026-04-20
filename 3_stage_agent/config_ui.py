@@ -71,6 +71,12 @@ def _project_dir() -> Path:
 def _config_path() -> Path:
     return _project_dir() / "stage1_config.yaml"
 
+def _s2_config_path() -> Path:
+    return _project_dir() / "stage2_config.yaml"
+
+def _s3_config_path() -> Path:
+    return _project_dir() / "stage3_config.yaml"
+
 def _question_path() -> Path:
     return _project_dir() / "my_question.txt"
 
@@ -578,11 +584,27 @@ def get_stage1_output() -> dict:
     }
 
 
-_s2_model_researcher  = widgets.Dropdown(options=MODEL_OPTIONS, value="openai/gpt-5.2", layout=_widget_layout)
-_s2_model_critic      = widgets.Dropdown(options=MODEL_OPTIONS, value="openai/gpt-5.2", layout=_widget_layout)
-_s2_max_web           = widgets.BoundedIntText(value=10, min=1, max=30, layout=_slider_layout)
-_s2_max_debate        = widgets.BoundedIntText(value=2,  min=1, max=10, layout=_slider_layout)
-_s2_max_rev_proposal  = widgets.BoundedIntText(value=2,  min=1, max=5,  layout=_slider_layout)
+_S2_DEFAULTS = {
+    "model_researcher":               "openai/gpt-5.2",
+    "model_critic":                   "openai/gpt-5.2",
+    "max_web_search_ct":              10,
+    "max_debate_rounds":              2,
+    "max_human_revision_on_proposal": 2,
+}
+
+_s2_model_researcher  = widgets.Dropdown(options=MODEL_OPTIONS, value=_S2_DEFAULTS["model_researcher"], layout=_widget_layout)
+_s2_model_critic      = widgets.Dropdown(options=MODEL_OPTIONS, value=_S2_DEFAULTS["model_critic"],     layout=_widget_layout)
+_s2_max_web           = widgets.BoundedIntText(value=_S2_DEFAULTS["max_web_search_ct"],              min=1, max=30, layout=_slider_layout)
+_s2_max_debate        = widgets.BoundedIntText(value=_S2_DEFAULTS["max_debate_rounds"],              min=1, max=10, layout=_slider_layout)
+_s2_max_rev_proposal  = widgets.BoundedIntText(value=_S2_DEFAULTS["max_human_revision_on_proposal"], min=1, max=5,  layout=_slider_layout)
+
+
+def _apply_s2_values(d: dict):
+    _s2_model_researcher.value = d.get("model_researcher",               _S2_DEFAULTS["model_researcher"])
+    _s2_model_critic.value     = d.get("model_critic",                   _S2_DEFAULTS["model_critic"])
+    _s2_max_web.value          = d.get("max_web_search_ct",              _S2_DEFAULTS["max_web_search_ct"])
+    _s2_max_debate.value       = d.get("max_debate_rounds",              _S2_DEFAULTS["max_debate_rounds"])
+    _s2_max_rev_proposal.value = d.get("max_human_revision_on_proposal", _S2_DEFAULTS["max_human_revision_on_proposal"])
 
 _s2_form = widgets.VBox([
     widgets.HTML(
@@ -603,7 +625,57 @@ _s2_form = widgets.VBox([
 
 
 def show_stage2():
-    display(_s2_form)
+    saved = _load_yaml(_s2_config_path())
+    if saved:
+        _apply_s2_values(saved)
+
+    save_btn = widgets.Button(
+        description="Save Config",
+        button_style="primary",
+        icon="check",
+        layout=widgets.Layout(width="150px", margin="12px 0 0 0"),
+    )
+    reset_btn = widgets.Button(
+        description="Reset to Defaults",
+        button_style="warning",
+        icon="refresh",
+        layout=widgets.Layout(width="180px", margin="12px 0 0 6px"),
+    )
+    status = widgets.Output()
+
+    def _on_save(b):
+        cfg = {
+            "model_researcher":               _s2_model_researcher.value,
+            "model_critic":                   _s2_model_critic.value,
+            "max_web_search_ct":              _s2_max_web.value,
+            "max_debate_rounds":              _s2_max_debate.value,
+            "max_human_revision_on_proposal": _s2_max_rev_proposal.value,
+        }
+        _save_yaml(_s2_config_path(), cfg)
+        ts = datetime.now().strftime("%H:%M:%S")
+        with status:
+            status.clear_output()
+            display(HTML(
+                _FLASH_CSS +
+                "<span class='s1-sf' style='color:#388e3c;font-size:13px'>"
+                f"✓ Saved config "
+                f"<span style='color:#aaa'>({ts})</span></span>"
+            ))
+
+    def _on_reset(b):
+        _s2_config_path().unlink(missing_ok=True)
+        _apply_s2_values(_S2_DEFAULTS)
+        with status:
+            status.clear_output()
+            display(HTML(
+                "<div style='border:2px solid #f57c00;padding:8px 12px;border-radius:6px;"
+                "background:#fff8e1;margin-bottom:8px'>"
+                "↺ Reset to defaults. Saved config deleted.</div>"
+            ))
+
+    save_btn.on_click(_on_save)
+    reset_btn.on_click(_on_reset)
+    display(widgets.VBox([_s2_form, widgets.HBox([save_btn, reset_btn]), status]))
 
 
 def get_config_stage2() -> dict:
@@ -635,8 +707,18 @@ def get_config_stage2() -> dict:
 # Stage 3 — unchanged from original
 # ============================================================================
 
-_s3_model       = widgets.Dropdown(options=MODEL_OPTIONS, value="anthropic/claude-opus-4.6", layout=_widget_layout)
-_s3_max_rev_plan = widgets.BoundedIntText(value=2, min=1, max=5, layout=_slider_layout)
+_S3_DEFAULTS = {
+    "model":                    "anthropic/claude-opus-4.6",
+    "max_human_revision_on_plan": 2,
+}
+
+_s3_model        = widgets.Dropdown(options=MODEL_OPTIONS, value=_S3_DEFAULTS["model"],                    layout=_widget_layout)
+_s3_max_rev_plan = widgets.BoundedIntText(value=_S3_DEFAULTS["max_human_revision_on_plan"], min=1, max=5, layout=_slider_layout)
+
+
+def _apply_s3_values(d: dict):
+    _s3_model.value        = d.get("model",                    _S3_DEFAULTS["model"])
+    _s3_max_rev_plan.value = d.get("max_human_revision_on_plan", _S3_DEFAULTS["max_human_revision_on_plan"])
 
 _s3_form = widgets.VBox([
     widgets.HTML(
@@ -652,7 +734,54 @@ _s3_form = widgets.VBox([
 
 
 def show_stage3():
-    display(_s3_form)
+    saved = _load_yaml(_s3_config_path())
+    if saved:
+        _apply_s3_values(saved)
+
+    save_btn = widgets.Button(
+        description="Save Config",
+        button_style="primary",
+        icon="check",
+        layout=widgets.Layout(width="150px", margin="12px 0 0 0"),
+    )
+    reset_btn = widgets.Button(
+        description="Reset to Defaults",
+        button_style="warning",
+        icon="refresh",
+        layout=widgets.Layout(width="180px", margin="12px 0 0 6px"),
+    )
+    status = widgets.Output()
+
+    def _on_save(b):
+        cfg = {
+            "model":                    _s3_model.value,
+            "max_human_revision_on_plan": _s3_max_rev_plan.value,
+        }
+        _save_yaml(_s3_config_path(), cfg)
+        ts = datetime.now().strftime("%H:%M:%S")
+        with status:
+            status.clear_output()
+            display(HTML(
+                _FLASH_CSS +
+                "<span class='s1-sf' style='color:#388e3c;font-size:13px'>"
+                f"✓ Saved config "
+                f"<span style='color:#aaa'>({ts})</span></span>"
+            ))
+
+    def _on_reset(b):
+        _s3_config_path().unlink(missing_ok=True)
+        _apply_s3_values(_S3_DEFAULTS)
+        with status:
+            status.clear_output()
+            display(HTML(
+                "<div style='border:2px solid #f57c00;padding:8px 12px;border-radius:6px;"
+                "background:#fff8e1;margin-bottom:8px'>"
+                "↺ Reset to defaults. Saved config deleted.</div>"
+            ))
+
+    save_btn.on_click(_on_save)
+    reset_btn.on_click(_on_reset)
+    display(widgets.VBox([_s3_form, widgets.HBox([save_btn, reset_btn]), status]))
 
 
 def get_config_stage3() -> dict:
