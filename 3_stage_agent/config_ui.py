@@ -449,12 +449,29 @@ def get_config_stage1() -> dict:
 # ============================================================================
 
 _s2_context_area = widgets.Textarea(
-    placeholder="Paste your research context here (from Stage 1 output)…",
-    layout=widgets.Layout(width="560px", height="140px"),
+    placeholder=(
+        "## Business Question\n"
+        "How do I start a business in Sweden?\n\n"
+        "## Problem Framing\n"
+        "The client seeks guidance on how to start a business in Sweden, including\n"
+        "understanding legal requirements, market conditions, and practical steps\n"
+        "for business set-up. The goal is to ensure compliance with Sweden's\n"
+        "regulatory framework while identifying viable business opportunities.\n\n"
+        "**Constraints:** Key constraints include navigating Swedish legal\n"
+        "requirements, availability of start-up capital, and understanding\n"
+        "local market dynamics and competition."
+    ),
+    layout=widgets.Layout(width="100%", height="200px"),
 )
 _s2_topics_area = widgets.Textarea(
-    placeholder="Paste your research topics here (one per line, or numbered)…",
-    layout=widgets.Layout(width="560px", height="120px"),
+    placeholder=(
+        "1. Market entry analysis and competitive landscape\n"
+        "2. Legal and regulatory requirements for business registration\n"
+        "3. Funding options and startup capital sources\n"
+        "4. Local market dynamics and customer segments\n"
+        "5. Business compliance and operational setup"
+    ),
+    layout=widgets.Layout(width="100%", height="140px"),
 )
 _s2_context_save_status = widgets.Output()
 _s2_topics_save_status  = widgets.Output()
@@ -489,7 +506,7 @@ _s2_input_form = widgets.VBox([
     _s2_topics_area,
     _s2_topics_save_btn,
     _s2_topics_save_status,
-])
+], layout=widgets.Layout(width="100%"))
 
 
 def show_stage2_input():
