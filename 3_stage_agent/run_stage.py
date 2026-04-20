@@ -52,11 +52,12 @@ def setup_stage1(repo_dir: str):
     return _cui
 
 
-def _run_graph(agent, lc_config, initial_state, output_dir, on_gate=None):
+def _run_graph(agent, lc_config, initial_state, output_dir, on_gate=None, get_feedback=None):
     """Shared interrupt loop for all stages.
 
-    on_gate: optional callable(snapshot) called after each gate resume,
-             so callers can update a progress widget using snapshot.values.
+    on_gate:      optional callable(snapshot) called after each gate resume.
+    get_feedback: optional callable(interrupt_text) -> str that replaces the
+                  default display + input() pair (used for widget-based gates).
     """
     report_export.start_log(output_dir)
 
@@ -74,14 +75,17 @@ def _run_graph(agent, lc_config, initial_state, output_dir, on_gate=None):
                 if hasattr(task, "interrupts"):
                     for intr in task.interrupts:
                         gate_num += 1
-                        display(HTML("<hr style='border:3px solid #2E75B6; margin:24px 0 8px 0'>"))
-                        display(Markdown(f"### Human Gate {gate_num}"))
-                        display(Markdown(str(intr.value)))
-                        display(HTML("<hr style='border:3px solid #2E75B6; margin:8px 0 16px 0'>"))
+                        interrupt_text = str(intr.value)
 
-                        feedback = input("approve / or type feedback > ").strip()
-                        if not feedback:
-                            feedback = "approved"
+                        if get_feedback is not None:
+                            feedback = get_feedback(interrupt_text) or "approved"
+                        else:
+                            display(HTML("<hr style='border:3px solid #2E75B6; margin:24px 0 8px 0'>"))
+                            display(Markdown(f"### Human Gate {gate_num}"))
+                            display(Markdown(interrupt_text))
+                            display(HTML("<hr style='border:3px solid #2E75B6; margin:8px 0 16px 0'>"))
+                            feedback = input("approve / or type feedback > ").strip() or "approved"
+
                         result = agent.invoke(Command(resume=feedback), lc_config)
                         if on_gate:
                             on_gate(agent.get_state(lc_config))
@@ -360,7 +364,93 @@ def run_stage2(mod, config_dict: dict, *,
         "approved_topics": [],
     }
 
-    result, elapsed = _run_graph(agent, lc_config, initial_state, output_dir, on_gate=_on_gate)
+    # ── Widget gate (replaces input() with button-based UI) ──────────────────
+    import threading
+    import html as _html
+    import ipywidgets as _w
+
+    def _widget_gate(interrupt_text: str) -> str:
+        # Strip the instruction footer ("---\n- Press Enter…") since buttons replace it
+        footer_idx = interrupt_text.find("\n---\n- ")
+        if footer_idx != -1:
+            interrupt_text = interrupt_text[:footer_idx].strip()
+
+        event = threading.Event()
+        result_holder = ["approved"]
+        gate_out = _w.Output()
+        display(gate_out)
+
+        feedback_area = _w.Textarea(
+            placeholder="Type feedback here, or leave blank and click Approve…",
+            layout=_w.Layout(width="90%", height="80px"),
+        )
+        submit_btn = _w.Button(
+            description="Submit Feedback",
+            button_style="primary",
+            layout=_w.Layout(width="170px", height="36px"),
+        )
+        approve_btn = _w.Button(
+            description="✓ Approve & Continue",
+            button_style="success",
+            layout=_w.Layout(width="190px", height="36px"),
+        )
+
+        def _on_approve(b):
+            submit_btn.disabled = True
+            approve_btn.disabled = True
+            with gate_out:
+                gate_out.clear_output()
+                display(HTML(
+                    "<div style='border:2px solid #388e3c;padding:10px 14px;"
+                    "border-radius:6px;background:#f1f8e9'>"
+                    "<b style='color:#388e3c'>✓ Approved — working on next topic…</b>"
+                    "</div>"
+                ))
+            result_holder[0] = "approved"
+            event.set()
+
+        def _on_submit(b):
+            submit_btn.disabled = True
+            approve_btn.disabled = True
+            answer = feedback_area.value.strip()
+            with gate_out:
+                gate_out.clear_output()
+                display(HTML("<i style='color:#888'>Sending feedback…</i>"))
+            result_holder[0] = answer
+            event.set()
+
+        submit_btn.on_click(_on_submit)
+        approve_btn.on_click(_on_approve)
+
+        escaped = _html.escape(interrupt_text)
+        with gate_out:
+            display(_w.VBox([
+                _w.HTML(
+                    "<div style='border:3px solid #1565c0;padding:16px;border-radius:8px;"
+                    "background:#e3f2fd;margin-bottom:10px'>"
+                    "<span style='font-size:18px;font-weight:bold;color:#1565c0'>"
+                    "Stage 2 — Topic Review</span>"
+                    f"<div style='margin-top:12px;font-size:14px;white-space:pre-wrap;"
+                    f"border-left:3px solid #1565c0;padding-left:12px'>{escaped}</div>"
+                    "</div>"
+                    "<p style='color:#555;font-size:13px;margin:0 0 6px'>"
+                    "Review the research proposal. Provide feedback to revise it, "
+                    "or approve to move to the next topic.</p>"
+                ),
+                feedback_area,
+                _w.HBox(
+                    [submit_btn, approve_btn],
+                    layout=_w.Layout(gap="10px", margin="6px 0 0 0"),
+                ),
+            ]))
+
+        event.wait()
+        return result_holder[0]
+
+    result, elapsed = _run_graph(
+        agent, lc_config, initial_state, output_dir,
+        on_gate=_on_gate, get_feedback=_widget_gate,
+    )
 
     # Final progress update
     approved_ct = len(result.get("approved_topics", []))
