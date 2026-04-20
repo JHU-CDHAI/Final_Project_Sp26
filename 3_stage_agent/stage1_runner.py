@@ -324,12 +324,12 @@ def show_framing_widget():
             out.clear_output()
             display(widgets.VBox([
                 widgets.HTML(f"""
-                    <div style='border:3px solid #e65100;padding:16px;border-radius:8px;
-                                background:#fff8e1;margin-bottom:10px'>
-                      <span style='font-size:18px;font-weight:bold;color:#e65100'>
-                        ⚠ Stage 1 — Problem Framing Review</span>
+                    <div style='border:3px solid #388e3c;padding:16px;border-radius:8px;
+                                background:#f1f8e9;margin-bottom:10px'>
+                      <span style='font-size:18px;font-weight:bold;color:#388e3c'>
+                        Stage 1 — Problem Framing Review</span>
                       <div style='margin-top:12px;font-size:14px;white-space:pre-wrap;
-                                  border-left:3px solid #e65100;padding-left:12px'>{q}</div>
+                                  border-left:3px solid #388e3c;padding-left:12px'>{q}</div>
                     </div>
                     <p style='color:#555;font-size:13px;margin:0 0 6px'>
                       Review the AI's framing of your business question.
@@ -362,7 +362,7 @@ def show_framing_widget():
         with out:
             display(HTML(
                 "<div style='border:2px solid #e53935;padding:10px;border-radius:6px;"
-                "background:#fff3f3'>⚠ Run Step 5a first.</div>"
+                "background:#fff3f3'>Run Step 5a first.</div>"
             ))
     elif _session.get("framing_approved"):
         _render_complete()
@@ -372,7 +372,7 @@ def show_framing_widget():
         with out:
             display(HTML(
                 "<div style='border:2px solid #e53935;padding:10px;border-radius:6px;"
-                "background:#fff3f3'>⚠ Run Step 5a first.</div>"
+                "background:#fff3f3'>Run Step 5a first.</div>"
             ))
 
 # ============================================================================
