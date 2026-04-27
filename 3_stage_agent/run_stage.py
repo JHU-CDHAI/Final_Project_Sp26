@@ -52,8 +52,12 @@ def setup_stage1(repo_dir: str):
     return _cui
 
 
-def _run_graph(agent, lc_config, initial_state, output_dir):
-    """Shared interrupt loop for all stages."""
+def _run_graph(agent, lc_config, initial_state, output_dir, get_feedback=None):
+    """Shared interrupt loop for all stages.
+
+    get_feedback: optional callable() -> str. When provided, replaces the default
+    input() prompt at each gate (used for widget button-based gates).
+    """
     report_export.start_log(output_dir)
 
     try:
@@ -75,9 +79,10 @@ def _run_graph(agent, lc_config, initial_state, output_dir):
                         display(Markdown(str(intr.value)))
                         display(HTML("<hr style='border:3px solid #2E75B6; margin:8px 0 16px 0'>"))
 
-                        feedback = input("approve / or type feedback > ").strip()
-                        if not feedback:
-                            feedback = "approved"
+                        if get_feedback is not None:
+                            feedback = get_feedback() or "approved"
+                        else:
+                            feedback = input("approve / or type feedback > ").strip() or "approved"
                         result = agent.invoke(Command(resume=feedback), lc_config)
 
         elapsed = time.time() - t0
@@ -307,7 +312,64 @@ def run_stage2(mod, config_dict: dict, *,
         "approved_topics": [],
     }
 
-    result, elapsed = _run_graph(agent, lc_config, initial_state, output_dir)
+    # Simple button-based gate: textarea + Approve / Submit Feedback buttons.
+    # Replaces input() so the user can click instead of typing in a prompt box.
+    import threading
+    import ipywidgets as _w
+
+    def _button_gate() -> str:
+        event = threading.Event()
+        result_holder = ["approved"]
+
+        feedback_area = _w.Textarea(
+            placeholder="Optional: type feedback to revise the proposal, "
+                        "or leave blank and click Approve.",
+            layout=_w.Layout(width="600px", height="70px"),
+        )
+        approve_btn = _w.Button(
+            description="✓ Approve",
+            button_style="success",
+            layout=_w.Layout(width="160px", height="34px"),
+        )
+        submit_btn = _w.Button(
+            description="Submit Feedback",
+            button_style="primary",
+            layout=_w.Layout(width="170px", height="34px"),
+        )
+        status_html = _w.HTML(value="")
+
+        def _disable_all():
+            approve_btn.disabled = True
+            submit_btn.disabled = True
+            feedback_area.disabled = True
+
+        def _on_approve(b):
+            _disable_all()
+            status_html.value = "<i style='color:#388e3c'>✓ Approved — continuing…</i>"
+            result_holder[0] = "approved"
+            event.set()
+
+        def _on_submit(b):
+            _disable_all()
+            text = feedback_area.value.strip() or "approved"
+            status_html.value = "<i style='color:#1565c0'>Sending feedback…</i>"
+            result_holder[0] = text
+            event.set()
+
+        approve_btn.on_click(_on_approve)
+        submit_btn.on_click(_on_submit)
+
+        display(_w.VBox([
+            feedback_area,
+            _w.HBox([approve_btn, submit_btn], layout=_w.Layout(margin="6px 0")),
+            status_html,
+        ]))
+        event.wait()
+        return result_holder[0]
+
+    result, elapsed = _run_graph(
+        agent, lc_config, initial_state, output_dir, get_feedback=_button_gate
+    )
 
     handoff_out = {
         "research_topics": research_topics,
