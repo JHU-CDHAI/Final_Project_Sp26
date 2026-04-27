@@ -52,28 +52,13 @@ def setup_stage1(repo_dir: str):
     return _cui
 
 
-def _run_graph(agent, lc_config, initial_state, output_dir,
-               on_gate=None, get_feedback=None, on_node=None):
-    """Shared interrupt loop for all stages.
-
-    on_gate:      optional callable(snapshot) called after each gate resume.
-    get_feedback: optional callable(interrupt_text) -> str that replaces the
-                  default display + input() pair (used for widget-based gates).
-    on_node:      optional callable(node_name, state_updates) fired after each
-                  node execution — enables live progress updates between gates.
-    """
+def _run_graph(agent, lc_config, initial_state, output_dir):
+    """Shared interrupt loop for all stages."""
     report_export.start_log(output_dir)
-
-    def _stream(cmd):
-        """Run agent stream until next interrupt or completion, firing on_node per node."""
-        for chunk in agent.stream(cmd, lc_config, stream_mode="updates"):
-            node_name = next((k for k in chunk if not k.startswith("__")), None)
-            if on_node and node_name:
-                on_node(node_name, chunk.get(node_name, {}))
 
     try:
         t0 = time.time()
-        _stream(initial_state)
+        result = agent.invoke(initial_state, lc_config)
 
         gate_num = 0
         while True:
@@ -85,23 +70,16 @@ def _run_graph(agent, lc_config, initial_state, output_dir,
                 if hasattr(task, "interrupts"):
                     for intr in task.interrupts:
                         gate_num += 1
-                        interrupt_text = str(intr.value)
+                        display(HTML("<hr style='border:3px solid #2E75B6; margin:24px 0 8px 0'>"))
+                        display(Markdown(f"### Human Gate {gate_num}"))
+                        display(Markdown(str(intr.value)))
+                        display(HTML("<hr style='border:3px solid #2E75B6; margin:8px 0 16px 0'>"))
 
-                        if get_feedback is not None:
-                            feedback = get_feedback(interrupt_text) or "approved"
-                        else:
-                            display(HTML("<hr style='border:3px solid #2E75B6; margin:24px 0 8px 0'>"))
-                            display(Markdown(f"### Human Gate {gate_num}"))
-                            display(Markdown(interrupt_text))
-                            display(HTML("<hr style='border:3px solid #2E75B6; margin:8px 0 16px 0'>"))
-                            feedback = input("approve / or type feedback > ").strip() or "approved"
+                        feedback = input("approve / or type feedback > ").strip()
+                        if not feedback:
+                            feedback = "approved"
+                        result = agent.invoke(Command(resume=feedback), lc_config)
 
-                        _stream(Command(resume=feedback))
-
-            if on_gate:
-                on_gate(agent.get_state(lc_config))
-
-        result = agent.get_state(lc_config).values
         elapsed = time.time() - t0
         return result, elapsed
 
@@ -301,13 +279,10 @@ def run_stage2(mod, config_dict: dict, *,
     if not research_topics_text.strip():
         raise ValueError("Please paste your Stage 1 research topics.")
 
-    import ipywidgets as _widgets
-
     _s2_cfg = config_dict["stage2_research"]
     research_topics = _parse_topics(research_topics_text)
-    n = len(research_topics)
     print(f"Research context: {len(research_context.strip())} chars")
-    print(f"Topics ({n}):")
+    print(f"Topics ({len(research_topics)}):")
     for i, t in enumerate(research_topics, 1):
         print(f"  {i}. {t}")
 
@@ -324,109 +299,6 @@ def run_stage2(mod, config_dict: dict, *,
     mod.set_output_dir(output_dir)
     print(f"Output dir: {output_dir.resolve()}\n")
 
-    # ── Progress bar (displayed at top of cell output, updates in-place) ──
-    _first = research_topics[0][:60] if research_topics else ""
-    _bar = _widgets.IntProgress(
-        value=0, min=0, max=n, bar_style="info",
-        layout=_widgets.Layout(width="95%", height="22px"),
-    )
-    _label = _widgets.HTML(
-        value=(
-            f"<b style='font-size:14px'>Stage 2 — 0 / {n} topics approved &nbsp;|&nbsp; "
-            f"Searching for Topic 1: <em>{_first}</em></b>"
-        )
-    )
-    _progress_box = _widgets.VBox(
-        [_label, _bar],
-        layout=_widgets.Layout(
-            border="2px solid #2E75B6", padding="10px 16px",
-            border_radius="6px", margin="0 0 12px 0", width="95%",
-        ),
-    )
-    display(_progress_box)
-
-    import threading
-    import html as _html
-    import ipywidgets as _w
-
-    _SLOT_CSS = (
-        "<style>"
-        "@keyframes s2-pulse{0%,100%{opacity:.35}50%{opacity:1}}"
-        ".s2-dot{display:inline-block;animation:s2-pulse 1.2s ease-in-out infinite}"
-        ".s2-dot:nth-child(2){animation-delay:.2s}"
-        ".s2-dot:nth-child(3){animation-delay:.4s}"
-        "</style>"
-    )
-    _SLOT_HTML = (
-        _SLOT_CSS +
-        "<div style='border:2px solid #90caf9;padding:10px 14px;"
-        "border-radius:6px;background:#e3f2fd;color:#1565c0;"
-        "font-size:14px;margin:4px 0'>"
-        "Preparing research proposal&nbsp;"
-        "<span class='s2-dot'>.</span>"
-        "<span class='s2-dot'>.</span>"
-        "<span class='s2-dot'>.</span>"
-        "</div>"
-    )
-
-    # Single VBox holds all topic cards in order — displayed once, never re-created.
-    # Using .children property updates (not display()) ensures correct ordering and
-    # immediate rendering even when called from button callback threads.
-    _topic_vbox = _w.VBox([], layout=_w.Layout(width="95%"))
-    display(_topic_vbox)
-
-    _current_slot: list = [None]
-
-    def _new_slot():
-        slot = _w.VBox(
-            [_w.HTML(value=_SLOT_HTML)],
-            layout=_w.Layout(margin="4px 0"),
-        )
-        _topic_vbox.children = _topic_vbox.children + (slot,)
-        _current_slot[0] = slot
-
-    _new_slot()  # placeholder for first research proposal
-
-    # on_node: fires after each graph node completes — updates label with current phase
-    _NODE_PHASE = {
-        "research_and_propose": "Critic reviewing",
-        "topic_critic":         "Awaiting your review of",
-        "human_gate_3":         "Searching for",
-    }
-
-    def _on_node(node_name, _updates):
-        phase = _NODE_PHASE.get(node_name)
-        if not phase:
-            return
-        vals      = agent.get_state(lc_config).values
-        approved  = len(vals.get("approved_topics", []))
-        topic_idx = vals.get("current_topic_idx", 0)
-        _bar.value = approved
-        if node_name == "human_gate_3":
-            if topic_idx < n:
-                nm = research_topics[topic_idx][:60]
-                _label.value = (
-                    f"<b style='font-size:14px'>Stage 2 — {approved} / {n} topics approved "
-                    f"&nbsp;|&nbsp; {phase} Topic {topic_idx + 1}: <em>{nm}</em></b>"
-                )
-            else:
-                _bar.bar_style = "success"
-                _label.value = (
-                    f"<b style='font-size:14px;color:#388e3c'>"
-                    f"✓ All {n} topics approved — finalizing…</b>"
-                )
-        else:
-            capped = min(topic_idx, n - 1)
-            nm = research_topics[capped][:60]
-            _label.value = (
-                f"<b style='font-size:14px'>Stage 2 — {approved} / {n} topics approved "
-                f"&nbsp;|&nbsp; {phase} Topic {capped + 1}: <em>{nm}</em></b>"
-            )
-
-    def _on_gate(snapshot):
-        # Bar value is already kept current by _on_node; this is a safety sync.
-        _bar.value = len(snapshot.values.get("approved_topics", []))
-
     initial_state = {
         "research_topics": research_topics,
         "research_brief": research_brief,
@@ -435,121 +307,7 @@ def run_stage2(mod, config_dict: dict, *,
         "approved_topics": [],
     }
 
-    # ── Widget gate (replaces input() with button-based UI) ──────────────────
-    # All callback-side updates use widget property assignments (.value, .disabled,
-    # .children) — never display() or clear_output() — so they render immediately
-    # even while the main thread is blocked on event.wait().
-
-    def _widget_gate(interrupt_text: str) -> str:
-        footer_idx = interrupt_text.find("\n---\n- ")
-        if footer_idx != -1:
-            interrupt_text = interrupt_text[:footer_idx].strip()
-
-        event = threading.Event()
-        result_holder = ["approved"]
-        gate_slot = _current_slot[0]  # VBox already inside _topic_vbox
-
-        feedback_area = _w.Textarea(
-            placeholder="Type feedback here, or leave blank and click Approve…",
-            layout=_w.Layout(width="90%", height="80px"),
-        )
-        submit_btn = _w.Button(
-            description="Submit Feedback",
-            button_style="primary",
-            layout=_w.Layout(width="170px", height="36px"),
-        )
-        approve_btn = _w.Button(
-            description="✓ Approve & Continue",
-            button_style="success",
-            layout=_w.Layout(width="190px", height="36px"),
-        )
-        _status_html = _w.HTML(value="")  # shown below buttons; filled on click
-
-        def _on_approve(b):
-            submit_btn.disabled = True
-            approve_btn.disabled = True
-            feedback_area.disabled = True
-            _status_html.value = (
-                _SLOT_CSS +
-                "<div style='border:2px solid #a5d6a7;padding:10px 14px;"
-                "border-radius:6px;background:#f1f8e9;margin-top:6px'>"
-                "<b style='color:#388e3c'>✓ Approved</b>"
-                " &nbsp;—&nbsp; generating next research proposal&nbsp;"
-                "<span class='s2-dot'>.</span>"
-                "<span class='s2-dot'>.</span>"
-                "<span class='s2-dot'>.</span>"
-                "</div>"
-            )
-            _new_slot()  # appends next placeholder to _topic_vbox immediately
-            result_holder[0] = "approved"
-            event.set()
-
-        def _on_submit(b):
-            submit_btn.disabled = True
-            approve_btn.disabled = True
-            feedback_area.disabled = True
-            answer = feedback_area.value.strip()
-            _status_html.value = (
-                _SLOT_CSS +
-                "<div style='border:2px solid #90caf9;padding:10px 14px;"
-                "border-radius:6px;background:#e3f2fd;margin-top:6px'>"
-                "Sending feedback and revising&nbsp;"
-                "<span class='s2-dot'>.</span>"
-                "<span class='s2-dot'>.</span>"
-                "<span class='s2-dot'>.</span>"
-                "</div>"
-            )
-            _new_slot()  # appends revised-proposal placeholder immediately
-            result_holder[0] = answer
-            event.set()
-
-        submit_btn.on_click(_on_submit)
-        approve_btn.on_click(_on_approve)
-
-        escaped = _html.escape(interrupt_text)
-        # Replace "..." placeholder with gate content — runs in main thread, safe.
-        gate_slot.children = (_w.VBox([
-            _w.HTML(
-                "<div style='border:3px solid #1565c0;padding:16px;border-radius:8px;"
-                "background:#e3f2fd;margin-bottom:10px'>"
-                "<span style='font-size:18px;font-weight:bold;color:#1565c0'>"
-                "Stage 2 — Topic Review</span>"
-                f"<div style='margin-top:12px;font-size:14px;white-space:pre-wrap;"
-                f"border-left:3px solid #1565c0;padding-left:12px'>{escaped}</div>"
-                "</div>"
-                "<p style='color:#555;font-size:13px;margin:0 0 6px'>"
-                "Review the research proposal. Provide feedback to revise it, "
-                "or approve to move to the next topic.</p>"
-            ),
-            feedback_area,
-            _w.HBox(
-                [submit_btn, approve_btn],
-                layout=_w.Layout(gap="10px", margin="6px 0 0 0"),
-            ),
-            _status_html,
-        ]),)
-
-        event.wait()
-        return result_holder[0]
-
-    result, elapsed = _run_graph(
-        agent, lc_config, initial_state, output_dir,
-        on_gate=_on_gate, get_feedback=_widget_gate, on_node=_on_node,
-    )
-
-    # Clear the last placeholder slot (no more topics coming)
-    if _current_slot[0] is not None:
-        _current_slot[0].children = ()
-
-    # Final progress update
-    approved_ct = len(result.get("approved_topics", []))
-    _bar.value = n
-    _bar.bar_style = "success"
-    _label.value = (
-        f"<b style='font-size:14px;color:#388e3c'>"
-        f"✓ Stage 2 Complete — {approved_ct} / {n} topics approved &nbsp;|&nbsp; "
-        f"Elapsed: {elapsed:.0f}s</b>"
-    )
+    result, elapsed = _run_graph(agent, lc_config, initial_state, output_dir)
 
     handoff_out = {
         "research_topics": research_topics,
