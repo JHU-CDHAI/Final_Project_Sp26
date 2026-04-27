@@ -314,58 +314,78 @@ def run_stage2(mod, config_dict: dict, *,
 
     # Simple button-based gate: textarea + Approve / Submit Feedback buttons.
     # Replaces input() so the user can click instead of typing in a prompt box.
-    import threading
+    #
+    # Implementation notes (Colab quirk):
+    #   - Widgets are pre-created ONCE and re-used across every gate. Creating
+    #     fresh button widgets per gate caused gate 2's clicks to hang because
+    #     Colab's comm channel for the new widget did not finish registering
+    #     before the main thread blocked.
+    #   - We poll a flag with time.sleep() instead of threading.Event().wait();
+    #     the periodic GIL release lets the kernel dispatch click callbacks
+    #     reliably across multiple gates.
+    import time
     import ipywidgets as _w
 
+    _feedback_area = _w.Textarea(
+        placeholder="Optional: type feedback to revise the proposal, "
+                    "or leave blank and click Approve.",
+        layout=_w.Layout(width="600px", height="70px"),
+    )
+    _approve_btn = _w.Button(
+        description="✓ Approve",
+        button_style="success",
+        layout=_w.Layout(width="160px", height="34px"),
+    )
+    _submit_btn = _w.Button(
+        description="Submit Feedback",
+        button_style="primary",
+        layout=_w.Layout(width="170px", height="34px"),
+    )
+    _status_html = _w.HTML(value="")
+    _gate_box = _w.VBox([
+        _feedback_area,
+        _w.HBox([_approve_btn, _submit_btn], layout=_w.Layout(margin="6px 0")),
+        _status_html,
+    ])
+
+    _gate_state = {"clicked": False, "result": "approved"}
+
+    def _on_approve(b):
+        _approve_btn.disabled = True
+        _submit_btn.disabled = True
+        _feedback_area.disabled = True
+        _status_html.value = "<i style='color:#388e3c'>✓ Approved — continuing…</i>"
+        _gate_state["result"] = "approved"
+        _gate_state["clicked"] = True
+
+    def _on_submit(b):
+        _approve_btn.disabled = True
+        _submit_btn.disabled = True
+        _feedback_area.disabled = True
+        _gate_state["result"] = _feedback_area.value.strip() or "approved"
+        _status_html.value = "<i style='color:#1565c0'>Sending feedback…</i>"
+        _gate_state["clicked"] = True
+
+    _approve_btn.on_click(_on_approve)
+    _submit_btn.on_click(_on_submit)
+
+    display(_gate_box)
+
     def _button_gate() -> str:
-        event = threading.Event()
-        result_holder = ["approved"]
+        # Reset widgets for the new gate
+        _feedback_area.value = ""
+        _feedback_area.disabled = False
+        _approve_btn.disabled = False
+        _submit_btn.disabled = False
+        _status_html.value = ""
+        _gate_state["clicked"] = False
+        _gate_state["result"] = "approved"
 
-        feedback_area = _w.Textarea(
-            placeholder="Optional: type feedback to revise the proposal, "
-                        "or leave blank and click Approve.",
-            layout=_w.Layout(width="600px", height="70px"),
-        )
-        approve_btn = _w.Button(
-            description="✓ Approve",
-            button_style="success",
-            layout=_w.Layout(width="160px", height="34px"),
-        )
-        submit_btn = _w.Button(
-            description="Submit Feedback",
-            button_style="primary",
-            layout=_w.Layout(width="170px", height="34px"),
-        )
-        status_html = _w.HTML(value="")
-
-        def _disable_all():
-            approve_btn.disabled = True
-            submit_btn.disabled = True
-            feedback_area.disabled = True
-
-        def _on_approve(b):
-            _disable_all()
-            status_html.value = "<i style='color:#388e3c'>✓ Approved — continuing…</i>"
-            result_holder[0] = "approved"
-            event.set()
-
-        def _on_submit(b):
-            _disable_all()
-            text = feedback_area.value.strip() or "approved"
-            status_html.value = "<i style='color:#1565c0'>Sending feedback…</i>"
-            result_holder[0] = text
-            event.set()
-
-        approve_btn.on_click(_on_approve)
-        submit_btn.on_click(_on_submit)
-
-        display(_w.VBox([
-            feedback_area,
-            _w.HBox([approve_btn, submit_btn], layout=_w.Layout(margin="6px 0")),
-            status_html,
-        ]))
-        event.wait()
-        return result_holder[0]
+        # Poll instead of event.wait(): the time.sleep() releases the GIL on
+        # every tick so the kernel's comm thread can dispatch button callbacks.
+        while not _gate_state["clicked"]:
+            time.sleep(0.05)
+        return _gate_state["result"]
 
     result, elapsed = _run_graph(
         agent, lc_config, initial_state, output_dir, get_feedback=_button_gate
