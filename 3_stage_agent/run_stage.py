@@ -52,15 +52,8 @@ def setup_stage1(repo_dir: str):
     return _cui
 
 
-def _run_graph(agent, lc_config, initial_state, output_dir, get_feedback=None):
-    """Shared interrupt loop for all stages.
-
-    get_feedback: optional callable(interrupt_text, gate_num) -> str. When
-    provided, replaces the default display(Markdown) + input() pair at each
-    gate; the callback is responsible for rendering the gate header itself
-    (used for widget button-based gates that must keep the header attached
-    to the buttons in the same widget tree).
-    """
+def _run_graph(agent, lc_config, initial_state, output_dir):
+    """Shared interrupt loop for all stages."""
     report_export.start_log(output_dir)
 
     try:
@@ -77,16 +70,14 @@ def _run_graph(agent, lc_config, initial_state, output_dir, get_feedback=None):
                 if hasattr(task, "interrupts"):
                     for intr in task.interrupts:
                         gate_num += 1
-                        interrupt_text = str(intr.value)
+                        display(HTML("<hr style='border:3px solid #2E75B6; margin:24px 0 8px 0'>"))
+                        display(Markdown(f"### Human Gate {gate_num}"))
+                        display(Markdown(str(intr.value)))
+                        display(HTML("<hr style='border:3px solid #2E75B6; margin:8px 0 16px 0'>"))
 
-                        if get_feedback is not None:
-                            feedback = get_feedback(interrupt_text, gate_num) or "approved"
-                        else:
-                            display(HTML("<hr style='border:3px solid #2E75B6; margin:24px 0 8px 0'>"))
-                            display(Markdown(f"### Human Gate {gate_num}"))
-                            display(Markdown(interrupt_text))
-                            display(HTML("<hr style='border:3px solid #2E75B6; margin:8px 0 16px 0'>"))
-                            feedback = input("approve / or type feedback > ").strip() or "approved"
+                        feedback = input("approve / or type feedback > ").strip()
+                        if not feedback:
+                            feedback = "approved"
                         result = agent.invoke(Command(resume=feedback), lc_config)
 
         elapsed = time.time() - t0
@@ -316,98 +307,7 @@ def run_stage2(mod, config_dict: dict, *,
         "approved_topics": [],
     }
 
-    # Simple button-based gate: textarea + Approve / Submit Feedback buttons.
-    # Replaces input() so the user can click instead of typing in a prompt box.
-    #
-    # Implementation notes (Colab quirk):
-    #   - We display ONE container VBox upfront and append each gate's UI as
-    #     a child via `.children = ... + (new,)`. Calling display() per gate
-    #     made gate 2's clicks hang in Colab because the new widget's comm
-    #     channel did not finish registering before the main thread blocked.
-    #     Children-property updates piggy-back on the container's already
-    #     established comm channel and dispatch reliably.
-    #   - Each gate's header (HTML rule + "Human Gate N" + interrupt text)
-    #     is captured in an Output widget so it appears in the same VBox as
-    #     its buttons, preserving visual order and keeping context attached.
-    #   - We poll a flag with time.sleep() instead of threading.Event().wait()
-    #     so the GIL is released regularly and the kernel's comm thread can
-    #     dispatch button callbacks across every gate.
-    import time
-    import ipywidgets as _w
-
-    _gate_container = _w.VBox([], layout=_w.Layout(width="100%"))
-    display(_gate_container)
-
-    _gate_state = {"clicked": False, "result": "approved"}
-
-    def _button_gate(interrupt_text: str, gate_num: int) -> str:
-        # Header: render the same Markdown / HTML that the input() path uses,
-        # captured into an Output widget so it lives in the gate's VBox.
-        header_out = _w.Output()
-        with header_out:
-            display(HTML("<hr style='border:3px solid #2E75B6; margin:24px 0 8px 0'>"))
-            display(Markdown(f"### Human Gate {gate_num}"))
-            display(Markdown(interrupt_text))
-            display(HTML("<hr style='border:3px solid #2E75B6; margin:8px 0 16px 0'>"))
-
-        feedback_area = _w.Textarea(
-            placeholder="Optional: type feedback to revise the proposal, "
-                        "or leave blank and click Approve.",
-            layout=_w.Layout(width="600px", height="70px"),
-        )
-        approve_btn = _w.Button(
-            description="✓ Approve",
-            button_style="success",
-            layout=_w.Layout(width="160px", height="34px"),
-        )
-        submit_btn = _w.Button(
-            description="Submit Feedback",
-            button_style="primary",
-            layout=_w.Layout(width="170px", height="34px"),
-        )
-        status_html = _w.HTML(value="")
-
-        def _on_approve(b):
-            approve_btn.disabled = True
-            submit_btn.disabled = True
-            feedback_area.disabled = True
-            status_html.value = "<i style='color:#388e3c'>✓ Approved — continuing…</i>"
-            _gate_state["result"] = "approved"
-            _gate_state["clicked"] = True
-
-        def _on_submit(b):
-            approve_btn.disabled = True
-            submit_btn.disabled = True
-            feedback_area.disabled = True
-            _gate_state["result"] = feedback_area.value.strip() or "approved"
-            status_html.value = "<i style='color:#1565c0'>Sending feedback…</i>"
-            _gate_state["clicked"] = True
-
-        approve_btn.on_click(_on_approve)
-        submit_btn.on_click(_on_submit)
-
-        gate_widget = _w.VBox([
-            header_out,
-            feedback_area,
-            _w.HBox([approve_btn, submit_btn], layout=_w.Layout(margin="6px 0")),
-            status_html,
-        ])
-
-        _gate_state["clicked"] = False
-        _gate_state["result"] = "approved"
-
-        # Append via children property — uses the container's existing comm
-        # channel, so new buttons are clickable as soon as they render.
-        _gate_container.children = _gate_container.children + (gate_widget,)
-
-        # Poll loop releases the GIL each tick so callbacks can fire.
-        while not _gate_state["clicked"]:
-            time.sleep(0.05)
-        return _gate_state["result"]
-
-    result, elapsed = _run_graph(
-        agent, lc_config, initial_state, output_dir, get_feedback=_button_gate
-    )
+    result, elapsed = _run_graph(agent, lc_config, initial_state, output_dir)
 
     handoff_out = {
         "research_topics": research_topics,
